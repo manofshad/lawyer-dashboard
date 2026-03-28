@@ -3,9 +3,6 @@ uvicorn[standard]==0.34.0
 pydantic-settings==2.8.1
 PyJWT[crypto]==2.10.1
 httpx==0.28.1
-<<<<<<< HEAD
 openai==1.75.0
-=======
 psycopg[binary]==3.2.9
->>>>>>> e47c39000c3dabd247a01b4b07f971f359cda407
 pytest==8.3.5

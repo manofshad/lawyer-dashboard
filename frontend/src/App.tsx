@@ -1,54 +1,84 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
 
-type Incident = {
-  id: string
-  date: string
-  type: string
-  description: string
-  address: string
+import {
+  fetchIncidentsByAddress,
+  IncidentLookupError,
+  type AddressIncidentLookupResponse,
+  type Incident,
+  type IncidentLocation,
+} from './incidents'
+import { hasSupabaseConfig, supabase } from './lib'
+
+const boroughLabels: Record<string, string> = {
+  B: 'Brooklyn',
+  M: 'Manhattan',
+  Q: 'Queens',
+  R: 'Staten Island',
+  X: 'Bronx',
 }
 
-const MOCK_INCIDENTS: Incident[] = [
-  {
-    id: '1',
-    date: '2024-11-03',
-    type: 'Slip and Fall',
-    description: 'Wet pavement near crosswalk caused pedestrian to fall.',
-    address: '123 Main St, New York, NY',
-  },
-  {
-    id: '2',
-    date: '2024-08-15',
-    type: 'Pothole Damage',
-    description: 'Large pothole caused vehicle damage and minor injuries.',
-    address: '123 Main St, New York, NY',
-  },
-  {
-    id: '3',
-    date: '2023-12-22',
-    type: 'Sidewalk Defect',
-    description: 'Raised sidewalk slab caused trip and fall injury.',
-    address: '123 Main St, New York, NY',
-  },
-]
+function formatDate(value: string | null): string {
+  if (!value) {
+    return 'Unknown'
+  }
 
-async function fetchIncidents(_address: string): Promise<Incident[]> {
-  // TODO: replace with real API call once backend is ready
-  // const response = await fetch(`/api/incidents?address=${encodeURIComponent(address)}`)
-  // return response.json()
-  await new Promise((r) => setTimeout(r, 600))
-  return MOCK_INCIDENTS
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
+
+  return parsed.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
-function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+function formatBoroughCode(code: string): string {
+  return boroughLabels[code] ?? code
+}
 
-  function handleSubmit(event: { preventDefault(): void }) {
-    event.preventDefault()
-    if (!email.trim() || !password) return
-    // TODO: replace with real auth call
-    onLogin(email.trim())
+function getIncidentSummary(incident: Incident, location: IncidentLocation): string {
+  const specLoc = typeof incident.raw_payload.SpecLoc === 'string' ? incident.raw_payload.SpecLoc : null
+
+  if (specLoc) {
+    return specLoc
+  }
+
+  if (location.spec_loc) {
+    return location.spec_loc
+  }
+
+  const crossStreetParts = [location.from_street, location.to_street].filter(Boolean)
+  if (crossStreetParts.length === 2) {
+    return `Between ${crossStreetParts[0]} and ${crossStreetParts[1]}`
+  }
+
+  return location.street_name
+}
+
+function LoginPage() {
+  const [authError, setAuthError] = useState('')
+
+  async function handleGoogleSignIn() {
+    if (!supabase) {
+      setAuthError('Supabase is not configured on the frontend.')
+      return
+    }
+
+    setAuthError('')
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.href,
+      },
+    })
+
+    if (error) {
+      setAuthError(error.message)
+    }
   }
 
   return (
@@ -59,69 +89,136 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
           <p className="text-slate-500 text-sm">Sign in to access the incident lookup.</p>
         </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700" htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-slate-400"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700" htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-slate-400"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
-
+        <div className="space-y-4">
           <button
-            className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-base font-medium text-white hover:bg-slate-700 transition-colors"
-            type="submit"
+            className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-base font-medium text-white hover:bg-slate-700 disabled:opacity-50 transition-colors"
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={!hasSupabaseConfig}
           >
-            Sign in
+            Continue with Google
           </button>
-        </form>
+
+          {!hasSupabaseConfig && (
+            <p className="text-sm text-red-600">
+              Missing `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY` in the frontend environment.
+            </p>
+          )}
+
+          {authError && (
+            <p className="text-sm text-red-600">{authError}</p>
+          )}
+        </div>
       </div>
     </main>
   )
 }
 
-function IncidentLookup({ userEmail }: { userEmail: string }) {
+function IncidentCard({
+  incident,
+  location,
+}: {
+  incident: Incident
+  location: IncidentLocation
+}) {
+  const summary = getIncidentSummary(incident, location)
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{incident.dataset_name}</p>
+          <h2 className="text-lg font-semibold text-slate-900">{incident.external_id}</h2>
+        </div>
+        <span className="self-start rounded-full bg-slate-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+          {incident.status}
+        </span>
+      </div>
+
+      <p className="text-sm text-slate-700">{summary}</p>
+
+      <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+        {incident.source && (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1">Source: {incident.source}</span>
+        )}
+        {incident.initiated_by && (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1">Initiated by: {incident.initiated_by}</span>
+        )}
+        <span className="rounded-full bg-slate-100 px-2.5 py-1">Events: {incident.events.length}</span>
+      </div>
+
+      <dl className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-slate-400">Reported</dt>
+          <dd>{formatDate(incident.reported_at)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-slate-400">Closed</dt>
+          <dd>{formatDate(incident.closed_at)}</dd>
+        </div>
+      </dl>
+
+      <p className="text-xs text-slate-400">
+        {location.canonical_address} · {formatBoroughCode(location.boro)}
+      </p>
+    </div>
+  )
+}
+
+function IncidentLookup({
+  session,
+  onSignOut,
+}: {
+  session: Session
+  onSignOut: () => Promise<void>
+}) {
   const [address, setAddress] = useState('')
-  const [incidents, setIncidents] = useState<Incident[] | null>(null)
+  const [result, setResult] = useState<AddressIncidentLookupResponse | null>(null)
   const [searchedAddress, setSearchedAddress] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSearch(event: { preventDefault(): void }) {
     event.preventDefault()
-    if (!address.trim()) return
+    if (!address.trim()) {
+      return
+    }
+
+    const nextAddress = address.trim()
 
     setLoading(true)
     setError('')
-    setIncidents(null)
+    setResult(null)
+    setSearchedAddress(nextAddress)
 
     try {
-      const data = await fetchIncidents(address.trim())
-      setIncidents(data)
-      setSearchedAddress(address.trim())
-    } catch {
+      const data = await fetchIncidentsByAddress(nextAddress, session.access_token)
+      setResult(data)
+    } catch (err) {
+      if (err instanceof IncidentLookupError) {
+        if (err.status === 401) {
+          setError('Your session expired. Please sign in again.')
+          return
+        }
+
+        if (err.status === 404) {
+          setError(`No incidents found for "${nextAddress}".`)
+          return
+        }
+
+        if (err.status === 400) {
+          setError(err.message)
+          return
+        }
+      }
+
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
   }
+
+  const userEmail = session.user.email ?? session.user.user_metadata.email ?? 'Unknown user'
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col items-center px-4">
@@ -129,7 +226,16 @@ function IncidentLookup({ userEmail }: { userEmail: string }) {
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold text-slate-900">Incident Lookup</h1>
           <p className="text-slate-500 text-lg">Search an address to see reported incidents</p>
-          <p className="text-xs text-slate-400">Signed in as {userEmail}</p>
+          <div className="flex items-center justify-center gap-3 text-xs text-slate-400">
+            <p>Signed in as {userEmail}</p>
+            <button
+              className="font-medium text-slate-600 hover:text-slate-900"
+              type="button"
+              onClick={onSignOut}
+            >
+              Sign out
+            </button>
+          </div>
         </div>
 
         <form className="w-full flex gap-2" onSubmit={handleSearch}>
@@ -153,25 +259,30 @@ function IncidentLookup({ userEmail }: { userEmail: string }) {
           <p className="text-red-600 text-sm">{error}</p>
         )}
 
-        {incidents && (
+        {result && (
           <div className="w-full space-y-4 pb-12">
             <p className="text-sm text-slate-500">
-              {incidents.length === 0
-                ? `No incidents found for "${searchedAddress}"`
-                : `${incidents.length} incident${incidents.length !== 1 ? 's' : ''} found for "${searchedAddress}"`}
+              {result.incident_count} incident{result.incident_count !== 1 ? 's' : ''} and {result.event_count} event{result.event_count !== 1 ? 's' : ''} found for "{searchedAddress}"
             </p>
-            {incidents.map((incident) => (
-              <div
+
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Location</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900">{result.location.canonical_address}</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Normalized address: {result.normalized_address}
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                {formatBoroughCode(result.location.boro)}
+                {result.location.spec_loc ? ` · ${result.location.spec_loc}` : ''}
+              </p>
+            </div>
+
+            {result.incidents.map((incident) => (
+              <IncidentCard
                 key={incident.id}
-                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-1"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-800">{incident.type}</span>
-                  <span className="text-sm text-slate-400">{incident.date}</span>
-                </div>
-                <p className="text-sm text-slate-600">{incident.description}</p>
-                <p className="text-xs text-slate-400">{incident.address}</p>
-              </div>
+                incident={incident}
+                location={result.location}
+              />
             ))}
           </div>
         )}
@@ -181,11 +292,55 @@ function IncidentLookup({ userEmail }: { userEmail: string }) {
 }
 
 export default function App() {
-  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [ready, setReady] = useState(!hasSupabaseConfig)
 
-  if (!userEmail) {
-    return <LoginPage onLogin={setUserEmail} />
+  useEffect(() => {
+    if (!supabase) {
+      return
+    }
+
+    let active = true
+
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) {
+        setSession(data.session)
+        setReady(true)
+      }
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+      setReady(true)
+    })
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  async function handleSignOut() {
+    if (!supabase) {
+      return
+    }
+
+    await supabase.auth.signOut()
   }
 
-  return <IncidentLookup userEmail={userEmail} />
+  if (!ready) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <p className="text-sm text-slate-500">Loading session...</p>
+      </main>
+    )
+  }
+
+  if (!session) {
+    return <LoginPage />
+  }
+
+  return <IncidentLookup session={session} onSignOut={handleSignOut} />
 }

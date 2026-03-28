@@ -42,6 +42,7 @@ Backend endpoints:
 - `GET /health`
 - `POST /api/echo`
 - `GET /api/me`
+- `POST /api/incidents/by-address`
 
 ## Sample incident import
 

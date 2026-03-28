@@ -6,7 +6,7 @@ import {
   IncidentLookupError,
   type AddressIncidentLookupResponse,
   type Incident,
-  type IncidentLocation,
+  type IncidentEvent,
 } from './incidents'
 import { hasSupabaseConfig, supabase } from './lib'
 
@@ -39,23 +39,16 @@ function formatBoroughCode(code: string): string {
   return boroughLabels[code] ?? code
 }
 
-function getIncidentSummary(incident: Incident, location: IncidentLocation): string {
-  const specLoc = typeof incident.raw_payload.SpecLoc === 'string' ? incident.raw_payload.SpecLoc : null
-
-  if (specLoc) {
-    return specLoc
+function formatEventLabel(event: IncidentEvent): string {
+  if (event.event_label) {
+    return event.event_label
   }
 
-  if (location.spec_loc) {
-    return location.spec_loc
-  }
-
-  const crossStreetParts = [location.from_street, location.to_street].filter(Boolean)
-  if (crossStreetParts.length === 2) {
-    return `Between ${crossStreetParts[0]} and ${crossStreetParts[1]}`
-  }
-
-  return location.street_name
+  return event.event_type
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 function LoginPage() {
@@ -114,53 +107,80 @@ function LoginPage() {
   )
 }
 
-function IncidentCard({
-  incident,
-  location,
+type TimelineEvent = IncidentEvent & {
+  incidentExternalId: string
+  sortIndex: number
+}
+
+function buildTimelineEvents(incidents: Incident[]): TimelineEvent[] {
+  return incidents
+    .flatMap((incident, incidentIndex) =>
+      incident.events.map((event, eventIndex) => ({
+        ...event,
+        incidentExternalId: incident.external_id,
+        sortIndex: incidentIndex * 1000 + eventIndex,
+      })),
+    )
+    .sort((left, right) => {
+      const leftTime = new Date(left.event_at).getTime()
+      const rightTime = new Date(right.event_at).getTime()
+
+      const leftValid = Number.isFinite(leftTime)
+      const rightValid = Number.isFinite(rightTime)
+
+      if (!leftValid && !rightValid) {
+        return left.sortIndex - right.sortIndex
+      }
+
+      if (!leftValid) {
+        return 1
+      }
+
+      if (!rightValid) {
+        return -1
+      }
+
+      if (leftTime !== rightTime) {
+        return leftTime - rightTime
+      }
+
+      return left.sortIndex - right.sortIndex
+    })
+}
+
+function IncidentTimeline({
+  incidents,
 }: {
-  incident: Incident
-  location: IncidentLocation
+  incidents: Incident[]
 }) {
-  const summary = getIncidentSummary(incident, location)
+  const timelineEvents = buildTimelineEvents(incidents)
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{incident.dataset_name}</p>
-          <h2 className="text-lg font-semibold text-slate-900">{incident.external_id}</h2>
-        </div>
-        <span className="self-start rounded-full bg-slate-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-          {incident.status}
-        </span>
+    <div className="pt-2">
+      <div className="relative pl-8">
+        <div
+          aria-hidden="true"
+          className="absolute bottom-0 left-3 top-0 w-px bg-slate-200"
+        />
+
+        <ol className="space-y-8">
+          {timelineEvents.map((event) => (
+            <li key={event.id} className="relative">
+              <span
+                aria-hidden="true"
+                className="absolute left-[-1.625rem] top-1.5 h-3 w-3 rounded-full border-2 border-slate-50 bg-slate-900"
+              />
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                {formatDate(event.event_at)}
+              </p>
+              <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3">
+                <p className="text-base font-medium text-slate-900">{formatEventLabel(event)}</p>
+                <p className="text-sm text-slate-500">{event.incidentExternalId}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
-
-      <p className="text-sm text-slate-700">{summary}</p>
-
-      <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-        {incident.source && (
-          <span className="rounded-full bg-slate-100 px-2.5 py-1">Source: {incident.source}</span>
-        )}
-        {incident.initiated_by && (
-          <span className="rounded-full bg-slate-100 px-2.5 py-1">Initiated by: {incident.initiated_by}</span>
-        )}
-        <span className="rounded-full bg-slate-100 px-2.5 py-1">Events: {incident.events.length}</span>
-      </div>
-
-      <dl className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
-        <div>
-          <dt className="text-xs uppercase tracking-wide text-slate-400">Reported</dt>
-          <dd>{formatDate(incident.reported_at)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wide text-slate-400">Closed</dt>
-          <dd>{formatDate(incident.closed_at)}</dd>
-        </div>
-      </dl>
-
-      <p className="text-xs text-slate-400">
-        {location.canonical_address} · {formatBoroughCode(location.boro)}
-      </p>
     </div>
   )
 }
@@ -277,13 +297,7 @@ function IncidentLookup({
               </p>
             </div>
 
-            {result.incidents.map((incident) => (
-              <IncidentCard
-                key={incident.id}
-                incident={incident}
-                location={result.location}
-              />
-            ))}
+            <IncidentTimeline incidents={result.incidents} />
           </div>
         )}
       </div>

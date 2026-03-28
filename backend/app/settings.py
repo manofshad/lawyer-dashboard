@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:5173"
     supabase_url: str = ""
+    database_url: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

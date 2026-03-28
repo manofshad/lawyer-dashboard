@@ -1,0 +1,622 @@
+[
+  {
+    "location": {
+      "canonical_address": "145 SMITH STREET",
+      "boro": "B",
+      "house_num": "145",
+      "street_name": "SMITH STREET",
+      "from_street": "ATLANTIC AVENUE",
+      "to_street": "PACIFIC STREET",
+      "spec_loc": "POTHOLE IN FRONT OF BUILDING",
+      "location_key": "B|145|SMITH STREET|ATLANTIC AVENUE|PACIFIC STREET",
+      "raw_geom_wkt": "MULTILINESTRING ((-73.991200 40.694100, -73.990800 40.694000))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0001",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "CTZ",
+      "initiated_by": "CSC",
+      "reported_at": "2026-01-02",
+      "closed_at": "2026-01-06",
+      "status": "closed",
+      "raw_house_num": "145",
+      "raw_street_name": "SMITH STREET",
+      "raw_from_street": "ATLANTIC AVENUE",
+      "raw_to_street": "PACIFIC STREET",
+      "raw_spec_loc": "POTHOLE IN FRONT OF BUILDING",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-73.991200 40.694100, -73.990800 40.694000))",
+        "DefNum": "DBSAMPLE0001",
+        "InitBy": "CSC",
+        "HouseNum": "145",
+        "OFT": "380030331530342730",
+        "OnFaceName": "SMITH ST",
+        "OnPrimName": "SMITH STREET",
+        "FrmPrimNam": "ATLANTIC AVENUE",
+        "ToPrimName": "PACIFIC STREET",
+        "SpecLoc": "POTHOLE IN FRONT OF BUILDING",
+        "Boro": "B",
+        "Source": "CTZ",
+        "RptDate": "01/02/2026",
+        "RptClosed": "01/06/2026",
+        "Shape_Leng": "140.25"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-02T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-01-06T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  },
+  {
+    "location": {
+      "canonical_address": "220 ATLANTIC AVENUE",
+      "boro": "B",
+      "house_num": "220",
+      "street_name": "ATLANTIC AVENUE",
+      "from_street": "CLINTON STREET",
+      "to_street": "COURT STREET",
+      "spec_loc": "LARGE POTHOLE BY CROSSWALK",
+      "location_key": "B|220|ATLANTIC AVENUE|CLINTON STREET|COURT STREET",
+      "raw_geom_wkt": "MULTILINESTRING ((-73.985400 40.689200, -73.985000 40.689100))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0002",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "CTZ",
+      "initiated_by": "CSC",
+      "reported_at": "2026-01-03",
+      "closed_at": "2026-01-25",
+      "status": "closed",
+      "raw_house_num": "220",
+      "raw_street_name": "ATLANTIC AVENUE",
+      "raw_from_street": "CLINTON STREET",
+      "raw_to_street": "COURT STREET",
+      "raw_spec_loc": "LARGE POTHOLE BY CROSSWALK",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-73.985400 40.689200, -73.985000 40.689100))",
+        "DefNum": "DBSAMPLE0002",
+        "InitBy": "CSC",
+        "HouseNum": "220",
+        "OFT": "313430345030386330",
+        "OnFaceName": "ATLANTIC AV",
+        "OnPrimName": "ATLANTIC AVENUE",
+        "FrmPrimNam": "CLINTON STREET",
+        "ToPrimName": "COURT STREET",
+        "SpecLoc": "LARGE POTHOLE BY CROSSWALK",
+        "Boro": "B",
+        "Source": "CTZ",
+        "RptDate": "01/03/2026",
+        "RptClosed": "01/25/2026",
+        "Shape_Leng": "165.80"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-03T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-01-25T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  },
+  {
+    "location": {
+      "canonical_address": "1462 ATLANTIC AVENUE",
+      "boro": "B",
+      "house_num": "1462",
+      "street_name": "ATLANTIC AVENUE",
+      "from_street": "BROOKLYN AVENUE",
+      "to_street": "ST ANDREWS PLACE",
+      "spec_loc": "POTHOLE NEAR BUS STOP",
+      "location_key": "B|1462|ATLANTIC AVENUE|BROOKLYN AVENUE|ST ANDREWS PLACE",
+      "raw_geom_wkt": "MULTILINESTRING ((-73.944900 40.678500, -73.944500 40.678400))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0003",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "YRD",
+      "initiated_by": "YRD",
+      "reported_at": "2026-01-05",
+      "closed_at": "2026-01-10",
+      "status": "closed",
+      "raw_house_num": "1462",
+      "raw_street_name": "ATLANTIC AVENUE",
+      "raw_from_street": "BROOKLYN AVENUE",
+      "raw_to_street": "ST ANDREWS PLACE",
+      "raw_spec_loc": "POTHOLE NEAR BUS STOP",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-73.944900 40.678500, -73.944500 40.678400))",
+        "DefNum": "DBSAMPLE0003",
+        "InitBy": "YRD",
+        "HouseNum": "1462",
+        "OFT": "313430323330379830",
+        "OnFaceName": "ATLANTIC AV",
+        "OnPrimName": "ATLANTIC AVENUE",
+        "FrmPrimNam": "BROOKLYN AVENUE",
+        "ToPrimName": "ST ANDREWS PLACE",
+        "SpecLoc": "POTHOLE NEAR BUS STOP",
+        "Boro": "B",
+        "Source": "YRD",
+        "RptDate": "01/05/2026",
+        "RptClosed": "01/10/2026",
+        "Shape_Leng": "210.10"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-05T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-01-10T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  },
+  {
+    "location": {
+      "canonical_address": "735 EAST NEW YORK AVENUE",
+      "boro": "B",
+      "house_num": "735",
+      "street_name": "EAST NEW YORK AVENUE",
+      "from_street": "ALBANY AVENUE",
+      "to_street": "TROY AVENUE",
+      "spec_loc": "DEEP POTHOLE MIDBLOCK",
+      "location_key": "B|735|EAST NEW YORK AVENUE|ALBANY AVENUE|TROY AVENUE",
+      "raw_geom_wkt": "MULTILINESTRING ((-73.952600 40.661900, -73.952100 40.661800))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0004",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "CTZ",
+      "initiated_by": "CSC",
+      "reported_at": "2026-01-07",
+      "closed_at": "2026-01-30",
+      "status": "closed",
+      "raw_house_num": "735",
+      "raw_street_name": "EAST NEW YORK AVENUE",
+      "raw_from_street": "ALBANY AVENUE",
+      "raw_to_street": "TROY AVENUE",
+      "raw_spec_loc": "DEEP POTHOLE MIDBLOCK",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-73.952600 40.661900, -73.952100 40.661800))",
+        "DefNum": "DBSAMPLE0004",
+        "InitBy": "CSC",
+        "HouseNum": "735",
+        "OFT": "338330312130386030",
+        "OnFaceName": "E NEW YORK AV",
+        "OnPrimName": "EAST NEW YORK AVENUE",
+        "FrmPrimNam": "ALBANY AVENUE",
+        "ToPrimName": "TROY AVENUE",
+        "SpecLoc": "DEEP POTHOLE MIDBLOCK",
+        "Boro": "B",
+        "Source": "CTZ",
+        "RptDate": "01/07/2026",
+        "RptClosed": "01/30/2026",
+        "Shape_Leng": "320.45"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-07T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-01-30T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  },
+  {
+    "location": {
+      "canonical_address": "8816 26 AVENUE",
+      "boro": "B",
+      "house_num": "8816",
+      "street_name": "26 AVENUE",
+      "from_street": "BATH AVENUE",
+      "to_street": "HARWAY AVENUE",
+      "spec_loc": "POTHOLE AT DRIVEWAY APRON",
+      "location_key": "B|8816|26 AVENUE|BATH AVENUE|HARWAY AVENUE",
+      "raw_geom_wkt": "MULTILINESTRING ((-73.987700 40.640800, -73.987200 40.640700))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0005",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "CTZ",
+      "initiated_by": "CSC",
+      "reported_at": "2026-01-08",
+      "closed_at": "2026-01-20",
+      "status": "closed",
+      "raw_house_num": "8816",
+      "raw_street_name": "26 AVENUE",
+      "raw_from_street": "BATH AVENUE",
+      "raw_to_street": "HARWAY AVENUE",
+      "raw_spec_loc": "POTHOLE AT DRIVEWAY APRON",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-73.987700 40.640800, -73.987200 40.640700))",
+        "DefNum": "DBSAMPLE0005",
+        "InitBy": "CSC",
+        "HouseNum": "8816",
+        "OFT": "307730315780347730",
+        "OnFaceName": "26 AV",
+        "OnPrimName": "26 AVENUE",
+        "FrmPrimNam": "BATH AVENUE",
+        "ToPrimName": "HARWAY AVENUE",
+        "SpecLoc": "POTHOLE AT DRIVEWAY APRON",
+        "Boro": "B",
+        "Source": "CTZ",
+        "RptDate": "01/08/2026",
+        "RptClosed": "01/20/2026",
+        "Shape_Leng": "285.70"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-08T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-01-20T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  },
+  {
+    "location": {
+      "canonical_address": "44 ROEBLING STREET",
+      "boro": "B",
+      "house_num": "44",
+      "street_name": "ROEBLING STREET",
+      "from_street": "SOUTH 1 STREET",
+      "to_street": "SOUTH 2 STREET",
+      "spec_loc": "MULTIPLE POTHOLES IN TRAVEL LANE",
+      "location_key": "B|44|ROEBLING STREET|SOUTH 1 STREET|SOUTH 2 STREET",
+      "raw_geom_wkt": "MULTILINESTRING ((-73.958900 40.712700, -73.958400 40.712500))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0006",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "CTZ",
+      "initiated_by": "CSC",
+      "reported_at": "2026-01-10",
+      "closed_at": "2026-02-01",
+      "status": "closed",
+      "raw_house_num": "44",
+      "raw_street_name": "ROEBLING STREET",
+      "raw_from_street": "SOUTH 1 STREET",
+      "raw_to_street": "SOUTH 2 STREET",
+      "raw_spec_loc": "MULTIPLE POTHOLES IN TRAVEL LANE",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-73.958900 40.712700, -73.958400 40.712500))",
+        "DefNum": "DBSAMPLE0006",
+        "InitBy": "CSC",
+        "HouseNum": "44",
+        "OFT": "373650378130378230",
+        "OnFaceName": "ROEBLING ST",
+        "OnPrimName": "ROEBLING STREET",
+        "FrmPrimNam": "SOUTH 1 STREET",
+        "ToPrimName": "SOUTH 2 STREET",
+        "SpecLoc": "MULTIPLE POTHOLES IN TRAVEL LANE",
+        "Boro": "B",
+        "Source": "CTZ",
+        "RptDate": "01/10/2026",
+        "RptClosed": "02/01/2026",
+        "Shape_Leng": "250.95"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-10T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-02-01T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  },
+  {
+    "location": {
+      "canonical_address": "514 AVENUE C",
+      "boro": "B",
+      "house_num": "514",
+      "street_name": "AVENUE C",
+      "from_street": "EAST 5 STREET",
+      "to_street": "OCEAN PARKWAY",
+      "spec_loc": "EDGE OF CURB LANE",
+      "location_key": "B|514|AVENUE C|EAST 5 STREET|OCEAN PARKWAY",
+      "raw_geom_wkt": "MULTILINESTRING ((-73.974400 40.631000, -73.973800 40.630900))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0007",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "YRD",
+      "initiated_by": "YRD",
+      "reported_at": "2026-01-12",
+      "closed_at": "2026-01-16",
+      "status": "closed",
+      "raw_house_num": "514",
+      "raw_street_name": "AVENUE C",
+      "raw_from_street": "EAST 5 STREET",
+      "raw_to_street": "OCEAN PARKWAY",
+      "raw_spec_loc": "EDGE OF CURB LANE",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-73.974400 40.631000, -73.973800 40.630900))",
+        "DefNum": "DBSAMPLE0007",
+        "InitBy": "YRD",
+        "HouseNum": "514",
+        "OFT": "313830335030367730",
+        "OnFaceName": "AV C",
+        "OnPrimName": "AVENUE C",
+        "FrmPrimNam": "EAST 5 STREET",
+        "ToPrimName": "OCEAN PARKWAY",
+        "SpecLoc": "EDGE OF CURB LANE",
+        "Boro": "B",
+        "Source": "YRD",
+        "RptDate": "01/12/2026",
+        "RptClosed": "01/16/2026",
+        "Shape_Leng": "198.35"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-12T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-01-16T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  },
+  {
+    "location": {
+      "canonical_address": "1402 HANCOCK STREET",
+      "boro": "B",
+      "house_num": "1402",
+      "street_name": "HANCOCK STREET",
+      "from_street": "IRVING AVENUE",
+      "to_street": "WYCKOFF AVENUE",
+      "spec_loc": "TWO ADJACENT POTHOLES",
+      "location_key": "B|1402|HANCOCK STREET|IRVING AVENUE|WYCKOFF AVENUE",
+      "raw_geom_wkt": "MULTILINESTRING ((-73.908000 40.695500, -73.907300 40.696200))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0008",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "CTZ",
+      "initiated_by": "CSC",
+      "reported_at": "2026-01-14",
+      "closed_at": "2026-02-05",
+      "status": "closed",
+      "raw_house_num": "1402",
+      "raw_street_name": "HANCOCK STREET",
+      "raw_from_street": "IRVING AVENUE",
+      "raw_to_street": "WYCKOFF AVENUE",
+      "raw_spec_loc": "TWO ADJACENT POTHOLES",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-73.908000 40.695500, -73.907300 40.696200))",
+        "DefNum": "DBSAMPLE0008",
+        "InitBy": "CSC",
+        "HouseNum": "1402",
+        "OFT": "347030352130394730",
+        "OnFaceName": "HANCOCK ST",
+        "OnPrimName": "HANCOCK STREET",
+        "FrmPrimNam": "IRVING AVENUE",
+        "ToPrimName": "WYCKOFF AVENUE",
+        "SpecLoc": "TWO ADJACENT POTHOLES",
+        "Boro": "B",
+        "Source": "CTZ",
+        "RptDate": "01/14/2026",
+        "RptClosed": "02/05/2026",
+        "Shape_Leng": "410.60"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-14T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-02-05T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  },
+  {
+    "location": {
+      "canonical_address": "9221 RIDGE BOULEVARD",
+      "boro": "B",
+      "house_num": "9221",
+      "street_name": "RIDGE BOULEVARD",
+      "from_street": "92 STREET",
+      "to_street": "93 STREET",
+      "spec_loc": "POTHOLE CLOSER TO CORNER",
+      "location_key": "B|9221|RIDGE BOULEVARD|92 STREET|93 STREET",
+      "raw_geom_wkt": "MULTILINESTRING ((-74.035500 40.619900, -74.035100 40.619300))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0009",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "CTZ",
+      "initiated_by": "CSC",
+      "reported_at": "2026-01-15",
+      "closed_at": "2026-01-19",
+      "status": "closed",
+      "raw_house_num": "9221",
+      "raw_street_name": "RIDGE BOULEVARD",
+      "raw_from_street": "92 STREET",
+      "raw_to_street": "93 STREET",
+      "raw_spec_loc": "POTHOLE CLOSER TO CORNER",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-74.035500 40.619900, -74.035100 40.619300))",
+        "DefNum": "DBSAMPLE0009",
+        "InitBy": "CSC",
+        "HouseNum": "9221",
+        "OFT": "373330311180311230",
+        "OnFaceName": "RIDGE BL",
+        "OnPrimName": "RIDGE BOULEVARD",
+        "FrmPrimNam": "92 STREET",
+        "ToPrimName": "93 STREET",
+        "SpecLoc": "POTHOLE CLOSER TO CORNER",
+        "Boro": "B",
+        "Source": "CTZ",
+        "RptDate": "01/15/2026",
+        "RptClosed": "01/19/2026",
+        "Shape_Leng": "230.40"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-15T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-01-19T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  },
+  {
+    "location": {
+      "canonical_address": "355 BROWN STREET",
+      "boro": "B",
+      "house_num": "355",
+      "street_name": "BROWN STREET",
+      "from_street": "AVENUE T",
+      "to_street": "AVENUE U",
+      "spec_loc": "ROUGH SURFACE AND POTHOLE",
+      "location_key": "B|355|BROWN STREET|AVENUE T|AVENUE U",
+      "raw_geom_wkt": "MULTILINESTRING ((-73.939900 40.602900, -73.939500 40.601900))"
+    },
+    "incident": {
+      "external_id": "DBSAMPLE0010",
+      "dataset_name": "street_pothole_work_orders_closed",
+      "source": "CTZ",
+      "initiated_by": "CSC",
+      "reported_at": "2026-01-18",
+      "closed_at": "2026-02-10",
+      "status": "closed",
+      "raw_house_num": "355",
+      "raw_street_name": "BROWN STREET",
+      "raw_from_street": "AVENUE T",
+      "raw_to_street": "AVENUE U",
+      "raw_spec_loc": "ROUGH SURFACE AND POTHOLE",
+      "raw_payload": {
+        "the_geom": "MULTILINESTRING ((-73.939900 40.602900, -73.939500 40.601900))",
+        "DefNum": "DBSAMPLE0010",
+        "InitBy": "CSC",
+        "HouseNum": "355",
+        "OFT": "323480314580314630",
+        "OnFaceName": "BROWN ST",
+        "OnPrimName": "BROWN STREET",
+        "FrmPrimNam": "AVENUE T",
+        "ToPrimName": "AVENUE U",
+        "SpecLoc": "ROUGH SURFACE AND POTHOLE",
+        "Boro": "B",
+        "Source": "CTZ",
+        "RptDate": "01/18/2026",
+        "RptClosed": "02/10/2026",
+        "Shape_Leng": "360.15"
+      }
+    },
+    "events": [
+      {
+        "event_type": "reported",
+        "event_at": "2026-01-18T00:00:00Z",
+        "event_label": "Reported",
+        "metadata": {
+          "source_field": "RptDate"
+        }
+      },
+      {
+        "event_type": "closed",
+        "event_at": "2026-02-10T00:00:00Z",
+        "event_label": "Closed",
+        "metadata": {
+          "source_field": "RptClosed"
+        }
+      }
+    ]
+  }
+]

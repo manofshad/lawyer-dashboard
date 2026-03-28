@@ -42,6 +42,30 @@ Backend endpoints:
 - `GET /health`
 - `POST /api/echo`
 - `GET /api/me`
+- `POST /api/incidents/by-address`
+
+## Sample incident import
+
+The repo includes a 10-row demo pothole dataset and a deterministic import path:
+
+- Source CSV: `backend/street-pothole-sample-10.csv`
+- Normalized JSON artifact: `backend/sample_incidents.json`
+- CSV to JSON transform: `backend/scripts/build_sample_incidents_json.py`
+- JSON to Postgres import: `backend/scripts/import_sample_incidents.py`
+
+Install backend dependencies, then:
+
+```bash
+cd backend
+python scripts/build_sample_incidents_json.py
+BACKEND_DATABASE_URL=postgresql://... python scripts/import_sample_incidents.py
+```
+
+The importer writes:
+
+- one `locations` row per normalized address/street segment
+- one `incidents` row per sample work order
+- two `incident_events` rows per incident: `reported` and `closed`
 
 ## Frontend setup
 

@@ -7,9 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:5173"
     supabase_url: str = ""
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4.1-mini"
-    sample_tiktok_json_path: str = "Pasted code.json"
+    database_url: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

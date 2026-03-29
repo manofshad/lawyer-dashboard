@@ -18,10 +18,23 @@ const boroughLabels: Record<string, string> = {
   X: 'Bronx',
 }
 
+function parseDateValue(value: string): Date | null {
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day))
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 function formatDate(value: string | null): string {
   if (!value) return 'Unknown'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
+  const parsed = parseDateValue(value)
+  if (!parsed) return value
   return parsed.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -152,33 +165,65 @@ function LoginPage() {
 // ─── Timeline ────────────────────────────────────────────────────────────────
 
 type TimelineEvent = IncidentEvent & {
+  kind: 'backend'
   incidentExternalId: string
+  key: string
   sortIndex: number
 }
 
-function buildTimelineEvents(incidents: Incident[]): TimelineEvent[] {
-  return incidents
-    .flatMap((incident, incidentIndex) =>
-      incident.events.map((event, eventIndex) => ({
-        ...event,
-        incidentExternalId: incident.external_id,
-        sortIndex: incidentIndex * 1000 + eventIndex,
-      })),
-    )
-    .sort((left, right) => {
-      const leftTime = new Date(left.event_at).getTime()
-      const rightTime = new Date(right.event_at).getTime()
-      const leftValid = Number.isFinite(leftTime)
-      const rightValid = Number.isFinite(rightTime)
-      if (!leftValid && !rightValid) return left.sortIndex - right.sortIndex
-      if (!leftValid) return 1
-      if (!rightValid) return -1
-      if (leftTime !== rightTime) return leftTime - rightTime
-      return left.sortIndex - right.sortIndex
-    })
+type ClientIncidentTimelineEvent = {
+  kind: 'client-incident'
+  event_at: string
+  incidentExternalId: string
+  key: string
+  label: string
+  sortIndex: number
 }
 
-function getTimelineDotColor(event: TimelineEvent): string {
+type TimelineItem = TimelineEvent | ClientIncidentTimelineEvent
+
+function isValidDate(value: string): boolean {
+  return parseDateValue(value) !== null
+}
+
+function buildTimelineEvents(incidents: Incident[], clientIncidentDate: string): TimelineItem[] {
+  const timelineEvents: TimelineItem[] = incidents.flatMap((incident, incidentIndex) =>
+    incident.events.map((event, eventIndex) => ({
+      ...event,
+      kind: 'backend' as const,
+      incidentExternalId: incident.external_id,
+      key: `event-${event.id}`,
+      sortIndex: incidentIndex * 1000 + eventIndex,
+    })),
+  )
+
+  if (clientIncidentDate && isValidDate(clientIncidentDate)) {
+    timelineEvents.push({
+      kind: 'client-incident',
+      event_at: clientIncidentDate,
+      incidentExternalId: 'Client incident',
+      key: `client-incident-${clientIncidentDate}`,
+      label: 'Client Incident',
+      sortIndex: -1,
+    })
+  }
+
+  return timelineEvents.sort((left, right) => {
+    const leftTime = parseDateValue(left.event_at)?.getTime() ?? Number.NaN
+    const rightTime = parseDateValue(right.event_at)?.getTime() ?? Number.NaN
+    const leftValid = Number.isFinite(leftTime)
+    const rightValid = Number.isFinite(rightTime)
+    if (!leftValid && !rightValid) return left.sortIndex - right.sortIndex
+    if (!leftValid) return 1
+    if (!rightValid) return -1
+    if (leftTime !== rightTime) return leftTime - rightTime
+    return left.sortIndex - right.sortIndex
+  })
+}
+
+function getTimelineDotColor(event: TimelineItem): string {
+  if (event.kind === 'client-incident') return '#ECC94B'
+
   const label = event.event_label?.trim().toLowerCase()
 
   if (label === 'reported') return '#3DAA6A'
@@ -186,8 +231,19 @@ function getTimelineDotColor(event: TimelineEvent): string {
   return '#A0AEC0'
 }
 
-function IncidentTimeline({ incidents }: { incidents: Incident[] }) {
-  const timelineEvents = buildTimelineEvents(incidents)
+function getTimelineLabel(event: TimelineItem): string {
+  if (event.kind === 'client-incident') return event.label
+  return formatEventLabel(event)
+}
+
+function IncidentTimeline({
+  incidents,
+  clientIncidentDate,
+}: {
+  incidents: Incident[]
+  clientIncidentDate: string
+}) {
+  const timelineEvents = buildTimelineEvents(incidents, clientIncidentDate)
 
   if (timelineEvents.length === 0) {
     return (
@@ -212,7 +268,7 @@ function IncidentTimeline({ incidents }: { incidents: Incident[] }) {
             const dotColor = getTimelineDotColor(event)
 
             return (
-              <li key={event.id} className="relative">
+              <li key={event.key} className="relative">
                 {/* Timeline dot */}
                 <span
                   aria-hidden="true"
@@ -231,7 +287,7 @@ function IncidentTimeline({ incidents }: { incidents: Incident[] }) {
                 {/* Event label row */}
                 <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <p className="text-base font-medium" style={{ color: '#1A2B3C' }}>
-                    {formatEventLabel(event)}
+                    {getTimelineLabel(event)}
                   </p>
                   <p className="text-sm" style={{ color: '#718096' }}>
                     {event.incidentExternalId}
@@ -249,9 +305,11 @@ function IncidentTimeline({ incidents }: { incidents: Incident[] }) {
 // ─── Location + Incident Card ─────────────────────────────────────────────────
 
 function LocationIncidentCard({
+  clientIncidentDate,
   result,
   searchedAddress,
 }: {
+  clientIncidentDate: string
   result: AddressIncidentLookupResponse
   searchedAddress: string
 }) {
@@ -331,7 +389,7 @@ function LocationIncidentCard({
         {/* Collapsible timeline */}
         {open && (
           <div className="px-5 pb-6 border-t" style={{ borderColor: '#E2E8F0' }}>
-            <IncidentTimeline incidents={result.incidents} />
+            <IncidentTimeline incidents={result.incidents} clientIncidentDate={clientIncidentDate} />
           </div>
         )}
       </div>
@@ -349,6 +407,7 @@ function IncidentLookup({
   onSignOut: () => Promise<void>
 }) {
   const [address, setAddress] = useState('')
+  const [clientIncidentDate, setClientIncidentDate] = useState('')
   const [result, setResult] = useState<AddressIncidentLookupResponse | null>(null)
   const [searchedAddress, setSearchedAddress] = useState('')
   const [loading, setLoading] = useState(false)
@@ -400,27 +459,46 @@ function IncidentLookup({
           </div>
 
           {/* Search */}
-          <form className="w-full flex gap-2" onSubmit={handleSearch}>
-            <input
-              className="flex-1 rounded-xl border px-4 py-3 text-base focus:outline-none focus:ring-2"
-              style={{
-                background: '#FFFFFF',
-                borderColor: '#CBD5E0',
-                color: '#1A2B3C',
-              }}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Enter an address..."
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-xl px-6 py-3 text-base font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
-              style={{ background: '#2B72D7', color: '#FFFFFF' }}
-            >
-              {loading ? 'Searching…' : 'Search'}
-            </button>
+          <form className="w-full space-y-3" onSubmit={handleSearch}>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                className="flex-1 rounded-xl border px-4 py-3 text-base focus:outline-none focus:ring-2"
+                style={{
+                  background: '#FFFFFF',
+                  borderColor: '#CBD5E0',
+                  color: '#1A2B3C',
+                }}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Enter an address..."
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="rounded-xl px-6 py-3 text-base font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+                style={{ background: '#2B72D7', color: '#FFFFFF' }}
+              >
+                {loading ? 'Searching…' : 'Search'}
+              </button>
+            </div>
+
+            <label className="block space-y-1">
+              <span className="text-sm font-medium" style={{ color: '#2D3748' }}>
+                Date of Incident
+              </span>
+              <input
+                type="date"
+                className="w-full rounded-xl border px-4 py-3 text-base focus:outline-none focus:ring-2"
+                style={{
+                  background: '#FFFFFF',
+                  borderColor: '#CBD5E0',
+                  color: '#1A2B3C',
+                }}
+                value={clientIncidentDate}
+                onChange={(e) => setClientIncidentDate(e.target.value)}
+              />
+            </label>
           </form>
 
           {error && (
@@ -430,7 +508,11 @@ function IncidentLookup({
           )}
 
           {result && (
-            <LocationIncidentCard result={result} searchedAddress={searchedAddress} />
+            <LocationIncidentCard
+              clientIncidentDate={clientIncidentDate}
+              result={result}
+              searchedAddress={searchedAddress}
+            />
           )}
         </div>
       </main>

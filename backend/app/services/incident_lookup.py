@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import json
 from typing import Any
 
 from psycopg import Error
@@ -46,6 +47,24 @@ def assemble_incident_lookup_response(
             }
         )
 
+    location_payload = {
+        "id": int(location["id"]),
+        "canonical_address": location["canonical_address"],
+        "boro": location["boro"],
+        "house_num": location["house_num"],
+        "street_name": location["street_name"],
+        "from_street": location["from_street"],
+        "to_street": location["to_street"],
+        "spec_loc": location["spec_loc"],
+        "location_key": location["location_key"],
+    }
+
+    map_payload = _build_map_payload(
+        normalized_address=normalized_address,
+        location=location_payload,
+        location_row=location,
+    )
+
     incident_items: list[dict[str, Any]] = []
     for incident in incidents:
         incident_id = int(incident["id"])
@@ -67,20 +86,48 @@ def assemble_incident_lookup_response(
     return {
         "address": address,
         "normalized_address": normalized_address,
-        "location": {
-            "id": int(location["id"]),
-            "canonical_address": location["canonical_address"],
-            "boro": location["boro"],
-            "house_num": location["house_num"],
-            "street_name": location["street_name"],
-            "from_street": location["from_street"],
-            "to_street": location["to_street"],
-            "spec_loc": location["spec_loc"],
-            "location_key": location["location_key"],
-        },
+        "location": location_payload,
+        "map": map_payload,
         "incidents": incident_items,
         "incident_count": len(incident_items),
         "event_count": len(events),
+    }
+
+
+def _build_map_payload(
+    *,
+    normalized_address: str,
+    location: dict[str, Any],
+    location_row: dict[str, Any],
+) -> dict[str, Any] | None:
+    geometry_geojson = location_row.get("geometry_geojson")
+    if not isinstance(geometry_geojson, str) or not geometry_geojson.strip():
+        return None
+
+    try:
+        geometry = json.loads(geometry_geojson)
+    except json.JSONDecodeError:
+        return None
+
+    geometry_type = geometry.get("type")
+    if geometry_type not in {"LineString", "MultiLineString"}:
+        return None
+
+    center = None
+    if location_row.get("center_lng") is not None and location_row.get("center_lat") is not None:
+        center = [float(location_row["center_lng"]), float(location_row["center_lat"])]
+
+    bbox = None
+    bbox_fields = ("min_lng", "min_lat", "max_lng", "max_lat")
+    if all(location_row.get(field) is not None for field in bbox_fields):
+        bbox = [float(location_row[field]) for field in bbox_fields]
+
+    return {
+        "normalized_address": normalized_address,
+        "location": location,
+        "geometry": geometry,
+        "bbox": bbox,
+        "center": center,
     }
 
 
@@ -208,7 +255,14 @@ class IncidentLookupRepository:
               from_street,
               to_street,
               spec_loc,
-              location_key
+              location_key,
+              ST_AsGeoJSON(geom) as geometry_geojson,
+              ST_XMin(ST_Envelope(geom)) as min_lng,
+              ST_YMin(ST_Envelope(geom)) as min_lat,
+              ST_XMax(ST_Envelope(geom)) as max_lng,
+              ST_YMax(ST_Envelope(geom)) as max_lat,
+              ST_X(ST_Centroid(geom)) as center_lng,
+              ST_Y(ST_Centroid(geom)) as center_lat
             from public.locations
             where canonical_address = %s
             order by id asc;

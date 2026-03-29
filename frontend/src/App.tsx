@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState, type MouseEvent, type RefObject } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import maplibregl from 'maplibre-gl'
 
 import {
   fetchLiabilityAnalysis,
   fetchIncidentsByAddress,
   type AddressIncidentLookupResponse,
   type CaseStrength,
+  type IncidentMapData,
   type Incident,
   type IncidentEvent,
   IncidentLookupError,
   type LiabilityAnalysisResponse,
 } from './incidents'
-import { hasSupabaseConfig, supabase } from './lib'
+import { hasMapStyleConfig, hasSupabaseConfig, mapStyleUrl, supabase } from './lib'
 
 const boroughLabels: Record<string, string> = {
   B: 'Brooklyn',
@@ -351,32 +353,167 @@ function ResultsHeader({
 
   return (
     <section className="panel results-header">
-      <div className="results-header-copy">
-        <div>
-          <p className="eyebrow">Search result</p>
-          <h2>{result.location.canonical_address}</h2>
+      <div className="results-header-top">
+        <div className="results-header-copy">
+          <div>
+            <p className="eyebrow">Search result</p>
+            <h2>{result.location.canonical_address}</h2>
+          </div>
+
+          <div className="results-meta">
+            <span className="badge-muted">{formatBoroughCode(result.location.boro)}</span>
+            {result.location.spec_loc && <span className="badge-muted">{result.location.spec_loc}</span>}
+            <span className="results-query">Queried as “{searchedAddress}”</span>
+          </div>
         </div>
 
-        <div className="results-meta">
-          <span className="badge-muted">{formatBoroughCode(result.location.boro)}</span>
-          {result.location.spec_loc && <span className="badge-muted">{result.location.spec_loc}</span>}
-          <span className="results-query">Queried as “{searchedAddress}”</span>
+        <div className="results-metrics">
+          <MetricCard label="Incidents" value={`${result.incident_count}`} />
+          <MetricCard label="Events" value={`${result.event_count}`} />
+          <MetricCard
+            label="Longest open"
+            value={longestDurationDays === null ? 'Unavailable' : formatDurationLabel(longestDurationDays)}
+          />
         </div>
-
-        <p className="section-copy">
-          Normalized reference: {result.normalized_address}
-        </p>
       </div>
 
-      <div className="results-metrics">
-        <MetricCard label="Incidents" value={`${result.incident_count}`} />
-        <MetricCard label="Events" value={`${result.event_count}`} />
-        <MetricCard
-          label="Longest open"
-          value={longestDurationDays === null ? 'Unavailable' : formatDurationLabel(longestDurationDays)}
-        />
-      </div>
+      <MapPanel mapData={result.map} />
     </section>
+  )
+}
+
+const MAP_CONTEXT_ZOOM = 14.9
+const MAP_BOUNDS_SPAN_THRESHOLD = 0.006
+const MAP_MAX_BOUNDS_ZOOM = 15.2
+
+function getMapCenter(mapData: IncidentMapData): [number, number] | null {
+  if (mapData.center) return mapData.center
+  if (!mapData.bbox) return null
+
+  return [
+    (mapData.bbox[0] + mapData.bbox[2]) / 2,
+    (mapData.bbox[1] + mapData.bbox[3]) / 2,
+  ]
+}
+
+function shouldUseBoundsFit(bbox: IncidentMapData['bbox']): bbox is [number, number, number, number] {
+  if (!bbox) return false
+
+  const lngSpan = Math.abs(bbox[2] - bbox[0])
+  const latSpan = Math.abs(bbox[3] - bbox[1])
+  return Math.max(lngSpan, latSpan) >= MAP_BOUNDS_SPAN_THRESHOLD
+}
+
+function createMapPinElement(): HTMLDivElement {
+  const pin = document.createElement('div')
+  pin.className = 'map-pin'
+  pin.innerHTML = '<span class="map-pin-core"></span>'
+  return pin
+}
+
+function MapPanel({ mapData }: { mapData: IncidentMapData | null }) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const mapInstanceRef = useRef<maplibregl.Map | null>(null)
+
+  useEffect(() => {
+    if (!mapData || !mapContainerRef.current || !hasMapStyleConfig) {
+      mapInstanceRef.current?.remove()
+      mapInstanceRef.current = null
+      return
+    }
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: mapStyleUrl,
+      attributionControl: false,
+      interactive: false,
+    })
+
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right')
+
+    map.on('load', () => {
+      const center = getMapCenter(mapData)
+
+      map.addSource('incident-location', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {
+            canonicalAddress: mapData.location.canonical_address,
+          },
+          geometry: mapData.geometry,
+        },
+      } as maplibregl.GeoJSONSourceSpecification)
+
+      map.addLayer({
+        id: 'incident-location-line',
+        type: 'line',
+        source: 'incident-location',
+        paint: {
+          'line-color': '#31506e',
+          'line-width': 4,
+          'line-opacity': 0.72,
+        },
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+      })
+
+      if (center) {
+        new maplibregl.Marker({
+          element: createMapPinElement(),
+          anchor: 'bottom',
+        })
+          .setLngLat(center)
+          .addTo(map)
+      }
+
+      if (shouldUseBoundsFit(mapData.bbox)) {
+        map.fitBounds(
+          [
+            [mapData.bbox[0], mapData.bbox[1]],
+            [mapData.bbox[2], mapData.bbox[3]],
+          ],
+          {
+            padding: 72,
+            duration: 0,
+            maxZoom: MAP_MAX_BOUNDS_ZOOM,
+          },
+        )
+        return
+      }
+
+      if (center) {
+        map.jumpTo({
+          center,
+          zoom: MAP_CONTEXT_ZOOM,
+        })
+      }
+    })
+
+    mapInstanceRef.current = map
+
+    return () => {
+      map.remove()
+      mapInstanceRef.current = null
+    }
+  }, [mapData])
+
+  return (
+    <div className="results-map-block">
+      {mapData && hasMapStyleConfig ? (
+        <div ref={mapContainerRef} className="map-canvas" aria-label="Incident location map" />
+      ) : (
+        <div className="map-empty-state">
+          <p className={hasMapStyleConfig ? 'status-muted' : 'status-danger'}>
+            {hasMapStyleConfig
+              ? 'Map data is unavailable for this location.'
+              : 'Map rendering is disabled until VITE_MAPTILER_API_KEY is configured.'}
+          </p>
+        </div>
+      )}
+    </div>
   )
 }
 

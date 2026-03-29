@@ -33,10 +33,29 @@ export type IncidentLocation = {
   location_key: string
 }
 
+export type GeoJsonLineString = {
+  type: 'LineString'
+  coordinates: [number, number][]
+}
+
+export type GeoJsonMultiLineString = {
+  type: 'MultiLineString'
+  coordinates: [number, number][][]
+}
+
+export type IncidentMapData = {
+  normalized_address: string
+  location: IncidentLocation
+  geometry: GeoJsonLineString | GeoJsonMultiLineString
+  bbox: [number, number, number, number] | null
+  center: [number, number] | null
+}
+
 export type AddressIncidentLookupResponse = {
   address: string
   normalized_address: string
   location: IncidentLocation
+  map: IncidentMapData | null
   incidents: Incident[]
   incident_count: number
   event_count: number

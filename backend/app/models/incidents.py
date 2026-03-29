@@ -43,12 +43,26 @@ class LocationResponse(BaseModel):
     location_key: str
 
 
+class GeoJsonLineGeometry(BaseModel):
+    type: str
+    coordinates: list[Any]
+
+
+class IncidentMapData(BaseModel):
+    normalized_address: str
+    location: LocationResponse
+    geometry: GeoJsonLineGeometry
+    bbox: list[float] | None = None
+    center: list[float] | None = None
+
+
 class AddressIncidentLookupResponse(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     address: str
     normalized_address: str
     location: LocationResponse
+    map: IncidentMapData | None = None
     incidents: list[IncidentResponse]
     incident_count: int
     event_count: int

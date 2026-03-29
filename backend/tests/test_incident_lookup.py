@@ -38,6 +38,35 @@ class StubIncidentLookupRepository:
                 "to_street": "PACIFIC STREET",
                 "spec_loc": None,
                 "location_key": "B|145|SMITH STREET|ATLANTIC AVENUE|PACIFIC STREET",
+                "geometry_geojson": (
+                    '{"type":"MultiLineString","coordinates":[[[-73.99,40.68],[-73.98,40.681]]]}'
+                ),
+                "min_lng": -73.99,
+                "min_lat": 40.68,
+                "max_lng": -73.98,
+                "max_lat": 40.681,
+                "center_lng": -73.985,
+                "center_lat": 40.6805,
+            },
+            "map": {
+                "normalized_address": "145 SMITH STREET",
+                "location": {
+                    "id": 1,
+                    "canonical_address": "145 SMITH STREET",
+                    "boro": "B",
+                    "house_num": "145",
+                    "street_name": "SMITH STREET",
+                    "from_street": "ATLANTIC AVENUE",
+                    "to_street": "PACIFIC STREET",
+                    "spec_loc": None,
+                    "location_key": "B|145|SMITH STREET|ATLANTIC AVENUE|PACIFIC STREET",
+                },
+                "geometry": {
+                    "type": "MultiLineString",
+                    "coordinates": [[[-73.99, 40.68], [-73.98, 40.681]]],
+                },
+                "bbox": [-73.99, 40.68, -73.98, 40.681],
+                "center": [-73.985, 40.6805],
             },
             "incidents": [
                 {
@@ -141,6 +170,13 @@ class StubOpenIncidentLookupRepository(StubIncidentLookupRepository):
         return payload
 
 
+class StubNoGeometryIncidentLookupRepository(StubIncidentLookupRepository):
+    def lookup_by_address(self, address: str | None) -> dict[str, object]:
+        payload = super().lookup_by_address(address)
+        payload["map"] = None
+        return payload
+
+
 def test_incidents_by_address_returns_nested_location_payload() -> None:
     repository = StubIncidentLookupRepository()
     app.dependency_overrides[get_current_user] = override_current_user
@@ -157,6 +193,26 @@ def test_incidents_by_address_returns_nested_location_payload() -> None:
     payload = response.json()
     assert payload["normalized_address"] == "145 SMITH STREET"
     assert payload["location"]["canonical_address"] == "145 SMITH STREET"
+    assert payload["map"] == {
+        "normalized_address": "145 SMITH STREET",
+        "location": {
+            "id": 1,
+            "canonical_address": "145 SMITH STREET",
+            "boro": "B",
+            "house_num": "145",
+            "street_name": "SMITH STREET",
+            "from_street": "ATLANTIC AVENUE",
+            "to_street": "PACIFIC STREET",
+            "spec_loc": None,
+            "location_key": "B|145|SMITH STREET|ATLANTIC AVENUE|PACIFIC STREET",
+        },
+        "geometry": {
+            "type": "MultiLineString",
+            "coordinates": [[[-73.99, 40.68], [-73.98, 40.681]]],
+        },
+        "bbox": [-73.99, 40.68, -73.98, 40.681],
+        "center": [-73.985, 40.6805],
+    }
     assert payload["incident_count"] == 1
     assert payload["event_count"] == 2
     assert payload["incidents"][0]["external_id"] == "DBSAMPLE0001"
@@ -211,6 +267,20 @@ def test_incidents_by_address_returns_not_found_for_unknown_address() -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "No incidents found for the provided address."}
+
+
+def test_incidents_by_address_returns_null_map_when_geometry_is_missing() -> None:
+    repository = StubNoGeometryIncidentLookupRepository()
+    app.dependency_overrides[get_current_user] = override_current_user
+    app.dependency_overrides[get_incident_lookup_repository] = lambda: repository
+
+    with TestClient(app) as client:
+        response = client.post("/api/incidents/by-address", json={"address": "145 smith street"})
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["map"] is None
 
 
 def test_incidents_by_address_requires_authentication() -> None:
@@ -321,8 +391,10 @@ def test_incident_liability_analysis_returns_screened_payload() -> None:
 
 def test_incident_liability_analysis_requires_client_incident_date() -> None:
     repository = StubIncidentLookupRepository()
+    summary_generator = StubLiabilitySummaryGenerator()
     app.dependency_overrides[get_current_user] = override_current_user
     app.dependency_overrides[get_incident_lookup_repository] = lambda: repository
+    app.dependency_overrides[get_liability_summary_generator] = lambda: summary_generator
 
     with TestClient(app) as client:
         response = client.post(
@@ -377,6 +449,13 @@ def test_assemble_incident_lookup_response_groups_events_per_incident() -> None:
             "to_street": "PACIFIC STREET",
             "spec_loc": None,
             "location_key": "B|145|SMITH STREET|ATLANTIC AVENUE|PACIFIC STREET",
+            "geometry_geojson": '{"type":"LineString","coordinates":[[-73.99,40.68],[-73.98,40.681]]}',
+            "min_lng": -73.99,
+            "min_lat": 40.68,
+            "max_lng": -73.98,
+            "max_lat": 40.681,
+            "center_lng": -73.985,
+            "center_lat": 40.6805,
         },
         incidents=[
             {
@@ -440,6 +519,26 @@ def test_assemble_incident_lookup_response_groups_events_per_incident() -> None:
 
     assert payload["incident_count"] == 2
     assert payload["event_count"] == 4
+    assert payload["map"] == {
+        "normalized_address": "145 SMITH STREET",
+        "location": {
+            "id": 1,
+            "canonical_address": "145 SMITH STREET",
+            "boro": "B",
+            "house_num": "145",
+            "street_name": "SMITH STREET",
+            "from_street": "ATLANTIC AVENUE",
+            "to_street": "PACIFIC STREET",
+            "spec_loc": None,
+            "location_key": "B|145|SMITH STREET|ATLANTIC AVENUE|PACIFIC STREET",
+        },
+        "geometry": {
+            "type": "LineString",
+            "coordinates": [[-73.99, 40.68], [-73.98, 40.681]],
+        },
+        "bbox": [-73.99, 40.68, -73.98, 40.681],
+        "center": [-73.985, 40.6805],
+    }
     assert [incident["id"] for incident in payload["incidents"]] == [11, 10]
     assert [event["id"] for event in payload["incidents"][0]["events"]] == [200, 201]
     assert [event["id"] for event in payload["incidents"][1]["events"]] == [100, 101]

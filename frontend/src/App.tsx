@@ -167,6 +167,7 @@ function LoginPage() {
 type TimelineEvent = IncidentEvent & {
   kind: 'backend'
   incidentExternalId: string
+  incidentDurationDays: number | null
   key: string
   sortIndex: number
 }
@@ -186,15 +187,50 @@ function isValidDate(value: string): boolean {
   return parseDateValue(value) !== null
 }
 
+function getIncidentDurationDays(incident: Incident): number | null {
+  if (!incident.reported_at || !incident.closed_at) return null
+
+  const reportedAt = parseDateValue(incident.reported_at)
+  const closedAt = parseDateValue(incident.closed_at)
+
+  if (!reportedAt || !closedAt) return null
+
+  const millisecondsPerDay = 24 * 60 * 60 * 1000
+  const diffInDays = Math.round((closedAt.getTime() - reportedAt.getTime()) / millisecondsPerDay)
+
+  if (diffInDays < 0) return null
+
+  return diffInDays
+}
+
+function formatDurationLabel(days: number): string {
+  return `${days} ${days === 1 ? 'day' : 'days'} open`
+}
+
+function getLongestIncidentDurationDays(incidents: Incident[]): number | null {
+  const durations = incidents
+    .map(getIncidentDurationDays)
+    .filter((duration): duration is number => duration !== null)
+
+  if (durations.length === 0) return null
+
+  return Math.max(...durations)
+}
+
 function buildTimelineEvents(incidents: Incident[], clientIncidentDate: string): TimelineItem[] {
   const timelineEvents: TimelineItem[] = incidents.flatMap((incident, incidentIndex) =>
-    incident.events.map((event, eventIndex) => ({
-      ...event,
-      kind: 'backend' as const,
-      incidentExternalId: incident.external_id,
-      key: `event-${event.id}`,
-      sortIndex: incidentIndex * 1000 + eventIndex,
-    })),
+    incident.events.map((event, eventIndex) => {
+      const durationDays = getIncidentDurationDays(incident)
+
+      return {
+        ...event,
+        kind: 'backend' as const,
+        incidentDurationDays: durationDays,
+        incidentExternalId: incident.external_id,
+        key: `event-${event.id}`,
+        sortIndex: incidentIndex * 1000 + eventIndex,
+      }
+    }),
   )
 
   if (clientIncidentDate && isValidDate(clientIncidentDate)) {
@@ -266,6 +302,15 @@ function IncidentTimeline({
         <ol className="space-y-7">
           {timelineEvents.map((event) => {
             const dotColor = getTimelineDotColor(event)
+            let durationLabel: string | null = null
+
+            if (
+              event.kind === 'backend' &&
+              event.incidentDurationDays !== null &&
+              getTimelineLabel(event).trim().toLowerCase() === 'closed'
+            ) {
+              durationLabel = formatDurationLabel(event.incidentDurationDays)
+            }
 
             return (
               <li key={event.key} className="relative">
@@ -289,6 +334,14 @@ function IncidentTimeline({
                   <p className="text-base font-medium" style={{ color: '#1A2B3C' }}>
                     {getTimelineLabel(event)}
                   </p>
+                  {durationLabel && (
+                    <span
+                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                      style={{ background: '#EFF3F8', color: '#2D3748' }}
+                    >
+                      {durationLabel}
+                    </span>
+                  )}
                   <p className="text-sm" style={{ color: '#718096' }}>
                     {event.incidentExternalId}
                   </p>
@@ -314,6 +367,7 @@ function LocationIncidentCard({
   searchedAddress: string
 }) {
   const [open, setOpen] = useState(false)
+  const longestDurationDays = getLongestIncidentDurationDays(result.incidents)
 
   return (
     <div className="w-full space-y-4">
@@ -363,6 +417,14 @@ function LocationIncidentCard({
               {result.incident_count} incident{result.incident_count !== 1 ? 's' : ''} &middot;{' '}
               {result.event_count} event{result.event_count !== 1 ? 's' : ''}
             </span>
+            {longestDurationDays !== null && (
+              <span
+                className="text-xs px-2.5 py-0.5 rounded-full"
+                style={{ background: '#EFF3F8', color: '#718096' }}
+              >
+                Longest open: {longestDurationDays} {longestDurationDays === 1 ? 'day' : 'days'}
+              </span>
+            )}
           </div>
 
           <svg

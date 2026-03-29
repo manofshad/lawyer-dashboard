@@ -262,55 +262,64 @@ function LoginPage() {
   }
 
   return (
-    <div className="app-screen">
-      <TopBar />
-
-      <main className="login-shell app-shell">
-        <section className="login-hero">
-          <p className="eyebrow">Operator workspace</p>
-          <h1 className="hero-title">Turn NYC location history into a disciplined case-file review.</h1>
-          <p className="hero-copy">
-            Search an address, inspect historical incident timelines, and generate a preliminary
-            liability screen without switching tools.
-          </p>
-          <div className="trust-list">
-            <div className="trust-item">
-              <span className="trust-title">Structured timeline review</span>
-              <span className="trust-copy">Bring reported and closed incident events into one sequence.</span>
-            </div>
-            <div className="trust-item">
-              <span className="trust-title">Authenticated access</span>
-              <span className="trust-copy">Google sign-in gates lookup and analysis tools behind your workspace.</span>
-            </div>
-            <div className="trust-item">
-              <span className="trust-title">Focused legal screening</span>
-              <span className="trust-copy">Use case-strength signals as intake support, not final legal advice.</span>
-            </div>
+    <div className="login-fullscreen">
+      <div className="login-visual">
+        <div className="login-visual-brand">
+          <div className="brand-mark brand-mark-light">NY</div>
+          <div>
+            <p className="login-visual-eyebrow">Municipal liability review</p>
+            <p className="login-visual-wordmark">NYCLegal</p>
           </div>
-        </section>
+        </div>
 
-        <section className="auth-panel">
-          <div className="auth-panel-head">
-            <p className="eyebrow">Secure sign-in</p>
-            <h2>Access the incident review desk</h2>
-            <p>Use your firm account to open the authenticated incident search and screening workflow.</p>
+        <div className="login-visual-footer">
+          <div className="login-visual-rule" />
+          <h1 className="login-visual-headline">
+            Turn NYC location history into a disciplined case-file review.
+          </h1>
+          <p className="login-visual-sub">
+            Search an address, inspect historical incident timelines, and generate a preliminary
+            liability screen — without switching tools.
+          </p>
+        </div>
+      </div>
+
+      <div className="login-form-side">
+        <div className="login-form-card">
+          <div className="login-form-head">
+            <p className="eyebrow" style={{ color: 'var(--text-soft)' }}>Secure sign-in</p>
+            <h2 className="login-form-title">Access the incident review desk</h2>
+            <p className="login-form-sub">
+              Use your firm Google account to open the authenticated incident search and screening workflow.
+            </p>
+          </div>
+
+          <div className="login-divider">
+            <span>Sign in with</span>
           </div>
 
           <button
             type="button"
             onClick={handleGoogleSignIn}
             disabled={!hasSupabaseConfig}
-            className="button-primary auth-button"
+            className="login-google-btn"
           >
+            <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              <path fill="none" d="M0 0h48v48H0z"/>
+            </svg>
             Continue with Google
           </button>
 
-          <div className="auth-footnote">
+          <div className="login-form-footnote">
             {!hasSupabaseConfig && <p className="status-danger">Missing Supabase environment configuration.</p>}
             {authError && <p className="status-danger">{authError}</p>}
           </div>
-        </section>
-      </main>
+        </div>
+      </div>
     </div>
   )
 }

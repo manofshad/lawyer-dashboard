@@ -19,15 +19,9 @@ const boroughLabels: Record<string, string> = {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) {
-    return 'Unknown'
-  }
-
+  if (!value) return 'Unknown'
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return value
-  }
-
+  if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -40,16 +34,55 @@ function formatBoroughCode(code: string): string {
 }
 
 function formatEventLabel(event: IncidentEvent): string {
-  if (event.event_label) {
-    return event.event_label
-  }
-
+  if (event.event_label) return event.event_label
   return event.event_type
     .split('_')
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
 }
+
+// ─── Navbar ──────────────────────────────────────────────────────────────────
+
+function Navbar({
+  userEmail,
+  onSignOut,
+}: {
+  userEmail?: string
+  onSignOut?: () => Promise<void>
+}) {
+  return (
+    <nav
+      className="w-full px-8 py-4 flex items-center justify-between border-b"
+      style={{ background: '#1B3A6B', borderColor: '#163060' }}
+    >
+      <span
+        className="text-xl font-bold tracking-wide select-none"
+        style={{ color: '#FFFFFF' }}
+      >
+        NYCLegal
+      </span>
+
+      {userEmail && onSignOut && (
+        <div className="flex items-center gap-4">
+          <span className="text-sm hidden sm:block" style={{ color: '#A8C0E0' }}>
+            {userEmail}
+          </span>
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="text-sm font-medium px-3 py-1.5 rounded-lg border transition-opacity hover:opacity-80"
+            style={{ borderColor: '#3A6BA8', color: '#FFFFFF' }}
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </nav>
+  )
+}
+
+// ─── Login ───────────────────────────────────────────────────────────────────
 
 function LoginPage() {
   const [authError, setAuthError] = useState('')
@@ -59,56 +92,69 @@ function LoginPage() {
       setAuthError('Supabase is not configured on the frontend.')
       return
     }
-
     setAuthError('')
-
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: window.location.href,
-      },
+      options: { redirectTo: window.location.href },
     })
-
-    if (error) {
-      setAuthError(error.message)
-    }
+    if (error) setAuthError(error.message)
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-6">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-slate-900">Hello!</h1>
-          <p className="text-slate-500 text-sm">Sign in to access the incident lookup.</p>
-        </div>
+    <div className="min-h-screen flex flex-col" style={{ background: '#EFF3F8' }}>
+      <Navbar />
 
-        <div className="space-y-4">
-          <button
-            className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-base font-medium text-white hover:bg-slate-700 disabled:opacity-50 transition-colors"
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={!hasSupabaseConfig}
-          >
-            Continue with Google
-          </button>
-
-          {!hasSupabaseConfig && (
-            <p className="text-sm text-red-600">
-              Missing `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY` in the frontend environment.
+      <main className="flex-1 flex items-center justify-center px-4">
+        <div
+          className="w-full max-w-sm rounded-2xl border p-8 space-y-6"
+          style={{ background: '#FFFFFF', borderColor: '#E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+        >
+          <div className="space-y-1">
+            <h1
+              className="text-2xl font-bold"
+              style={{ color: '#1A2B3C' }}
+            >
+              Welcome
+            </h1>
+            <p className="text-sm" style={{ color: '#718096' }}>
+              Sign in to access the incident lookup.
             </p>
-          )}
+          </div>
 
-          {authError && (
-            <p className="text-sm text-red-600">{authError}</p>
-          )}
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={!hasSupabaseConfig}
+              className="w-full rounded-xl px-4 py-2.5 text-base font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+              style={{ background: '#2B72D7', color: '#FFFFFF' }}
+            >
+              Continue with Google
+            </button>
+
+            {!hasSupabaseConfig && (
+              <p className="text-sm" style={{ color: '#C0504A' }}>
+                Missing Supabase environment configuration.
+              </p>
+            )}
+            {authError && (
+              <p className="text-sm" style={{ color: '#C0504A' }}>
+                {authError}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }
 
+// ─── Timeline ────────────────────────────────────────────────────────────────
+
 type TimelineEvent = IncidentEvent & {
   incidentExternalId: string
+  incidentStatus: string
+  incidentClosedAt: string | null
   sortIndex: number
 }
 
@@ -118,72 +164,191 @@ function buildTimelineEvents(incidents: Incident[]): TimelineEvent[] {
       incident.events.map((event, eventIndex) => ({
         ...event,
         incidentExternalId: incident.external_id,
+        incidentStatus: incident.status,
+        incidentClosedAt: incident.closed_at,
         sortIndex: incidentIndex * 1000 + eventIndex,
       })),
     )
     .sort((left, right) => {
       const leftTime = new Date(left.event_at).getTime()
       const rightTime = new Date(right.event_at).getTime()
-
       const leftValid = Number.isFinite(leftTime)
       const rightValid = Number.isFinite(rightTime)
-
-      if (!leftValid && !rightValid) {
-        return left.sortIndex - right.sortIndex
-      }
-
-      if (!leftValid) {
-        return 1
-      }
-
-      if (!rightValid) {
-        return -1
-      }
-
-      if (leftTime !== rightTime) {
-        return leftTime - rightTime
-      }
-
+      if (!leftValid && !rightValid) return left.sortIndex - right.sortIndex
+      if (!leftValid) return 1
+      if (!rightValid) return -1
+      if (leftTime !== rightTime) return leftTime - rightTime
       return left.sortIndex - right.sortIndex
     })
 }
 
-function IncidentTimeline({
-  incidents,
-}: {
-  incidents: Incident[]
-}) {
+function isIncidentOpen(event: TimelineEvent): boolean {
+  return !event.incidentClosedAt && event.incidentStatus.toLowerCase() !== 'closed'
+}
+
+function IncidentTimeline({ incidents }: { incidents: Incident[] }) {
   const timelineEvents = buildTimelineEvents(incidents)
 
+  if (timelineEvents.length === 0) {
+    return (
+      <p className="text-sm py-4" style={{ color: '#718096' }}>
+        No events recorded for this address.
+      </p>
+    )
+  }
+
   return (
-    <div className="pt-2">
+    <div className="pt-4">
       <div className="relative pl-8">
+        {/* Vertical line */}
         <div
           aria-hidden="true"
-          className="absolute bottom-0 left-3 top-0 w-px bg-slate-200"
+          className="absolute bottom-0 left-3 top-0 w-px"
+          style={{ background: '#E2E8F0' }}
         />
 
-        <ol className="space-y-8">
-          {timelineEvents.map((event) => (
-            <li key={event.id} className="relative">
-              <span
-                aria-hidden="true"
-                className="absolute left-[-1.625rem] top-1.5 h-3 w-3 rounded-full border-2 border-slate-50 bg-slate-900"
-              />
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                {formatDate(event.event_at)}
-              </p>
-              <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3">
-                <p className="text-base font-medium text-slate-900">{formatEventLabel(event)}</p>
-                <p className="text-sm text-slate-500">{event.incidentExternalId}</p>
-              </div>
-            </li>
-          ))}
+        <ol className="space-y-7">
+          {timelineEvents.map((event) => {
+            const open = isIncidentOpen(event)
+            const dotColor = open ? '#3DAA6A' : '#C0504A'
+            const badgeBg = open ? 'rgba(61,170,106,0.14)' : 'rgba(192,80,74,0.14)'
+            const badgeColor = open ? '#3DAA6A' : '#C0504A'
+
+            return (
+              <li key={event.id} className="relative">
+                {/* Timeline dot */}
+                <span
+                  aria-hidden="true"
+                  className="absolute left-[-1.625rem] top-[0.35rem] h-3 w-3 rounded-full border-2"
+                  style={{ background: dotColor, borderColor: '#FFFFFF' }}
+                />
+
+                {/* Date */}
+                <p
+                  className="text-xs uppercase tracking-[0.18em]"
+                  style={{ color: '#A0AEC0' }}
+                >
+                  {formatDate(event.event_at)}
+                </p>
+
+                {/* Event label row */}
+                <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <p className="text-base font-medium" style={{ color: '#1A2B3C' }}>
+                    {formatEventLabel(event)}
+                  </p>
+                  <p className="text-sm" style={{ color: '#718096' }}>
+                    {event.incidentExternalId}
+                  </p>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: badgeBg, color: badgeColor }}
+                  >
+                    {open ? 'Open' : 'Closed'}
+                  </span>
+                </div>
+              </li>
+            )
+          })}
         </ol>
       </div>
     </div>
   )
 }
+
+// ─── Location + Incident Card ─────────────────────────────────────────────────
+
+function LocationIncidentCard({
+  result,
+  searchedAddress,
+}: {
+  result: AddressIncidentLookupResponse
+  searchedAddress: string
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="w-full space-y-4">
+      <p className="text-sm" style={{ color: '#718096' }}>
+        Results for &ldquo;{searchedAddress}&rdquo;
+      </p>
+
+      <div
+        className="w-full rounded-xl border overflow-hidden"
+        style={{ background: '#FFFFFF', borderColor: '#E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+      >
+        {/* Location info */}
+        <div className="px-5 pt-5 pb-4 space-y-1">
+          <p className="text-xs uppercase tracking-[0.18em]" style={{ color: '#A0AEC0' }}>
+            Location
+          </p>
+          <p className="text-lg font-semibold" style={{ color: '#1A2B3C' }}>
+            {result.location.canonical_address}
+          </p>
+          <p className="text-sm" style={{ color: '#718096' }}>
+            Normalized: {result.normalized_address}
+          </p>
+          <p className="text-sm" style={{ color: '#A0AEC0' }}>
+            {formatBoroughCode(result.location.boro)}
+            {result.location.spec_loc ? ` · ${result.location.spec_loc}` : ''}
+          </p>
+        </div>
+
+        {/* Divider + toggle */}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-3 border-t transition-colors hover:bg-gray-50"
+          style={{ borderColor: '#E2E8F0' }}
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className="text-sm font-semibold"
+              style={{ color: '#2D3748' }}
+            >
+              Incident Timeline
+            </span>
+            <span
+              className="text-xs px-2.5 py-0.5 rounded-full"
+              style={{ background: '#EFF3F8', color: '#718096' }}
+            >
+              {result.incident_count} incident{result.incident_count !== 1 ? 's' : ''} &middot;{' '}
+              {result.event_count} event{result.event_count !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#A0AEC0"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              flexShrink: 0,
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+            }}
+            aria-hidden="true"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {/* Collapsible timeline */}
+        {open && (
+          <div className="px-5 pb-6 border-t" style={{ borderColor: '#E2E8F0' }}>
+            <IncidentTimeline incidents={result.incidents} />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Incident Lookup ─────────────────────────────────────────────────────────
 
 function IncidentLookup({
   session,
@@ -198,163 +363,123 @@ function IncidentLookup({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const userEmail =
+    session.user.email ?? session.user.user_metadata.email ?? 'Unknown user'
+
   async function handleSearch(event: { preventDefault(): void }) {
     event.preventDefault()
-    if (!address.trim()) {
-      return
-    }
-
+    if (!address.trim()) return
     const nextAddress = address.trim()
-
     setLoading(true)
     setError('')
     setResult(null)
     setSearchedAddress(nextAddress)
-
     try {
       const data = await fetchIncidentsByAddress(nextAddress, session.access_token)
       setResult(data)
     } catch (err) {
       if (err instanceof IncidentLookupError) {
-        if (err.status === 401) {
-          setError('Your session expired. Please sign in again.')
-          return
-        }
-
-        if (err.status === 404) {
-          setError(`No incidents found for "${nextAddress}".`)
-          return
-        }
-
-        if (err.status === 400) {
-          setError(err.message)
-          return
-        }
+        if (err.status === 401) { setError('Your session expired. Please sign in again.'); return }
+        if (err.status === 404) { setError(`No incidents found for "${nextAddress}".`); return }
+        if (err.status === 400) { setError(err.message); return }
       }
-
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const userEmail = session.user.email ?? session.user.user_metadata.email ?? 'Unknown user'
-
   return (
-    <main className="min-h-screen bg-slate-50 flex flex-col items-center px-4">
-      <div className="w-full max-w-2xl flex flex-col items-center gap-8 pt-24">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold text-slate-900">Incident Lookup</h1>
-          <p className="text-slate-500 text-lg">Search an address to see reported incidents</p>
-          <div className="flex items-center justify-center gap-3 text-xs text-slate-400">
-            <p>Signed in as {userEmail}</p>
-            <button
-              className="font-medium text-slate-600 hover:text-slate-900"
-              type="button"
-              onClick={onSignOut}
+    <div className="min-h-screen flex flex-col" style={{ background: '#EFF3F8' }}>
+      <Navbar userEmail={userEmail} onSignOut={onSignOut} />
+
+      <main className="flex-1 flex flex-col items-center px-4 pt-14 pb-12">
+        <div className="w-full max-w-2xl flex flex-col items-center gap-8">
+          {/* Heading */}
+          <div className="text-center space-y-2">
+            <h1
+              className="text-4xl font-bold"
+              style={{ color: '#1A2B3C' }}
             >
-              Sign out
-            </button>
-          </div>
-        </div>
-
-        <form className="w-full flex gap-2" onSubmit={handleSearch}>
-          <input
-            className="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Enter an address..."
-            autoFocus
-          />
-          <button
-            className="rounded-xl bg-slate-900 px-6 py-3 text-base font-medium text-white hover:bg-slate-700 disabled:opacity-50 transition-colors"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Searching...' : 'Search'}
-          </button>
-        </form>
-
-        {error && (
-          <p className="text-red-600 text-sm">{error}</p>
-        )}
-
-        {result && (
-          <div className="w-full space-y-4 pb-12">
-            <p className="text-sm text-slate-500">
-              {result.incident_count} incident{result.incident_count !== 1 ? 's' : ''} and {result.event_count} event{result.event_count !== 1 ? 's' : ''} found for "{searchedAddress}"
+              Incident Lookup
+            </h1>
+            <p className="text-lg" style={{ color: '#718096' }}>
+              Search an address to see reported incidents
             </p>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Location</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">{result.location.canonical_address}</p>
-              <p className="mt-1 text-sm text-slate-600">
-                Normalized address: {result.normalized_address}
-              </p>
-              <p className="mt-2 text-sm text-slate-500">
-                {formatBoroughCode(result.location.boro)}
-                {result.location.spec_loc ? ` · ${result.location.spec_loc}` : ''}
-              </p>
-            </div>
-
-            <IncidentTimeline incidents={result.incidents} />
           </div>
-        )}
-      </div>
-    </main>
+
+          {/* Search */}
+          <form className="w-full flex gap-2" onSubmit={handleSearch}>
+            <input
+              className="flex-1 rounded-xl border px-4 py-3 text-base focus:outline-none focus:ring-2"
+              style={{
+                background: '#FFFFFF',
+                borderColor: '#CBD5E0',
+                color: '#1A2B3C',
+              }}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Enter an address..."
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-xl px-6 py-3 text-base font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+              style={{ background: '#2B72D7', color: '#FFFFFF' }}
+            >
+              {loading ? 'Searching…' : 'Search'}
+            </button>
+          </form>
+
+          {error && (
+            <p className="text-sm" style={{ color: '#C0504A' }}>
+              {error}
+            </p>
+          )}
+
+          {result && (
+            <LocationIncidentCard result={result} searchedAddress={searchedAddress} />
+          )}
+        </div>
+      </main>
+    </div>
   )
 }
+
+// ─── App root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(!hasSupabaseConfig)
 
   useEffect(() => {
-    if (!supabase) {
-      return
-    }
-
+    if (!supabase) return
     let active = true
-
     void supabase.auth.getSession().then(({ data }) => {
-      if (active) {
-        setSession(data.session)
-        setReady(true)
-      }
+      if (active) { setSession(data.session); setReady(true) }
     })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
       setReady(true)
     })
-
-    return () => {
-      active = false
-      subscription.unsubscribe()
-    }
+    return () => { active = false; subscription.unsubscribe() }
   }, [])
 
   async function handleSignOut() {
-    if (!supabase) {
-      return
-    }
-
+    if (!supabase) return
     await supabase.auth.signOut()
   }
 
   if (!ready) {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-        <p className="text-sm text-slate-500">Loading session...</p>
-      </main>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#EFF3F8' }}>
+        <p className="text-sm" style={{ color: '#718096' }}>Loading session…</p>
+      </div>
     )
   }
 
-  if (!session) {
-    return <LoginPage />
-  }
+  if (!session) return <LoginPage />
 
   return <IncidentLookup session={session} onSignOut={handleSignOut} />
 }

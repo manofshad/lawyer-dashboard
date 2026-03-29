@@ -358,15 +358,14 @@ function IncidentTimeline({
 // ─── Location + Incident Card ─────────────────────────────────────────────────
 
 function LocationIncidentCard({
-  clientIncidentDate,
   result,
   searchedAddress,
 }: {
-  clientIncidentDate: string
   result: AddressIncidentLookupResponse
   searchedAddress: string
 }) {
   const [open, setOpen] = useState(false)
+  const [clientIncidentDate, setClientIncidentDate] = useState('')
   const longestDurationDays = getLongestIncidentDurationDays(result.incidents)
 
   return (
@@ -451,6 +450,35 @@ function LocationIncidentCard({
         {/* Collapsible timeline */}
         {open && (
           <div className="px-5 pb-6 border-t" style={{ borderColor: '#E2E8F0' }}>
+            {/* Date of client incident — lives here so changes are visible alongside the timeline */}
+            <div className="pt-4 pb-2">
+              <label className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="text-xs uppercase tracking-[0.18em] shrink-0" style={{ color: '#A0AEC0' }}>
+                  Client Incident Date
+                </span>
+                <input
+                  type="date"
+                  className="rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2"
+                  style={{
+                    background: '#F7FAFC',
+                    borderColor: '#CBD5E0',
+                    color: '#1A2B3C',
+                  }}
+                  value={clientIncidentDate}
+                  onChange={(e) => setClientIncidentDate(e.target.value)}
+                />
+                {clientIncidentDate && (
+                  <button
+                    type="button"
+                    onClick={() => setClientIncidentDate('')}
+                    className="text-xs hover:opacity-70 transition-opacity"
+                    style={{ color: '#A0AEC0' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </label>
+            </div>
             <IncidentTimeline incidents={result.incidents} clientIncidentDate={clientIncidentDate} />
           </div>
         )}
@@ -469,7 +497,6 @@ function IncidentLookup({
   onSignOut: () => Promise<void>
 }) {
   const [address, setAddress] = useState('')
-  const [clientIncidentDate, setClientIncidentDate] = useState('')
   const [result, setResult] = useState<AddressIncidentLookupResponse | null>(null)
   const [searchedAddress, setSearchedAddress] = useState('')
   const [loading, setLoading] = useState(false)
@@ -545,22 +572,6 @@ function IncidentLookup({
               </button>
             </div>
 
-            <label className="block space-y-1">
-              <span className="text-sm font-medium" style={{ color: '#2D3748' }}>
-                Date of Incident
-              </span>
-              <input
-                type="date"
-                className="w-full rounded-xl border px-4 py-3 text-base focus:outline-none focus:ring-2"
-                style={{
-                  background: '#FFFFFF',
-                  borderColor: '#CBD5E0',
-                  color: '#1A2B3C',
-                }}
-                value={clientIncidentDate}
-                onChange={(e) => setClientIncidentDate(e.target.value)}
-              />
-            </label>
           </form>
 
           {error && (
@@ -571,7 +582,6 @@ function IncidentLookup({
 
           {result && (
             <LocationIncidentCard
-              clientIncidentDate={clientIncidentDate}
               result={result}
               searchedAddress={searchedAddress}
             />

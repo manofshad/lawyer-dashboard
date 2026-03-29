@@ -384,8 +384,11 @@ function LocationIncidentCard({
   analysis,
   analysisError,
   analysisLoading,
-  clientIncidentDate,
-  onClientIncidentDateChange,
+  confirmedClientIncidentDate,
+  draftClientIncidentDate,
+  onApplyClientIncidentDate,
+  onClearClientIncidentDate,
+  onDraftClientIncidentDateChange,
   onGenerateAnalysis,
   result,
   searchedAddress,
@@ -393,15 +396,21 @@ function LocationIncidentCard({
   analysis: LiabilityAnalysisResponse | null
   analysisError: string
   analysisLoading: boolean
-  clientIncidentDate: string
-  onClientIncidentDateChange: (value: string) => void
+  confirmedClientIncidentDate: string
+  draftClientIncidentDate: string
+  onApplyClientIncidentDate: () => void
+  onClearClientIncidentDate: () => void
+  onDraftClientIncidentDateChange: (value: string) => void
   onGenerateAnalysis: () => void
   result: AddressIncidentLookupResponse
   searchedAddress: string
 }) {
   const [open, setOpen] = useState(false)
   const longestDurationDays = getLongestIncidentDurationDays(result.incidents)
-  const hasValidClientDate = Boolean(clientIncidentDate && isValidDate(clientIncidentDate))
+  const hasValidClientDate = Boolean(confirmedClientIncidentDate && isValidDate(confirmedClientIncidentDate))
+  const canApplyClientDate =
+    Boolean(draftClientIncidentDate && isValidDate(draftClientIncidentDate)) &&
+    draftClientIncidentDate !== confirmedClientIncidentDate
   const strengthBadgeStyle = analysis ? getStrengthBadgeStyle(analysis.case_strength) : null
 
   return (
@@ -488,34 +497,48 @@ function LocationIncidentCard({
           <div className="px-5 pb-6 border-t" style={{ borderColor: '#E2E8F0' }}>
             {/* Date of client incident — lives here so changes are visible alongside the timeline */}
             <div className="pt-4 pb-2">
-              <label className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <span className="text-xs uppercase tracking-[0.18em] shrink-0" style={{ color: '#A0AEC0' }}>
-                  Client Incident Date
-                </span>
-                <input
-                  type="date"
-                  className="rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2"
-                  style={{
-                    background: '#F7FAFC',
-                    borderColor: '#CBD5E0',
-                    color: '#1A2B3C',
-                  }}
-                  value={clientIncidentDate}
-                  onChange={(e) => onClientIncidentDateChange(e.target.value)}
-                />
-                {clientIncidentDate && (
+              <div className="flex flex-col gap-2">
+                <label className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-xs uppercase tracking-[0.18em] shrink-0" style={{ color: '#A0AEC0' }}>
+                    Client Incident Date
+                  </span>
+                  <input
+                    type="date"
+                    className="rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2"
+                    style={{
+                      background: '#F7FAFC',
+                      borderColor: '#CBD5E0',
+                      color: '#1A2B3C',
+                    }}
+                    value={draftClientIncidentDate}
+                    onChange={(e) => onDraftClientIncidentDateChange(e.target.value)}
+                  />
                   <button
                     type="button"
-                    onClick={() => onClientIncidentDateChange('')}
-                    className="text-xs hover:opacity-70 transition-opacity"
-                    style={{ color: '#A0AEC0' }}
+                    onClick={onApplyClientIncidentDate}
+                    disabled={!canApplyClientDate}
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+                    style={{ background: '#2B72D7', color: '#FFFFFF' }}
                   >
-                    Clear
+                    Apply date
                   </button>
-                )}
-              </label>
+                  {(draftClientIncidentDate || confirmedClientIncidentDate) && (
+                    <button
+                      type="button"
+                      onClick={onClearClientIncidentDate}
+                      className="text-xs hover:opacity-70 transition-opacity"
+                      style={{ color: '#A0AEC0' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </label>
+                <p className="text-xs" style={{ color: '#A0AEC0' }}>
+                  Date appears on the timeline after you apply it.
+                </p>
+              </div>
             </div>
-            <IncidentTimeline incidents={result.incidents} clientIncidentDate={clientIncidentDate} />
+            <IncidentTimeline incidents={result.incidents} clientIncidentDate={confirmedClientIncidentDate} />
           </div>
         )}
       </div>
@@ -615,7 +638,8 @@ function IncidentLookup({
   onSignOut: () => Promise<void>
 }) {
   const [address, setAddress] = useState('')
-  const [clientIncidentDate, setClientIncidentDate] = useState('')
+  const [draftClientIncidentDate, setDraftClientIncidentDate] = useState('')
+  const [confirmedClientIncidentDate, setConfirmedClientIncidentDate] = useState('')
   const [result, setResult] = useState<AddressIncidentLookupResponse | null>(null)
   const [analysis, setAnalysis] = useState<LiabilityAnalysisResponse | null>(null)
   const [analysisLoading, setAnalysisLoading] = useState(false)
@@ -637,6 +661,8 @@ function IncidentLookup({
     setAnalysis(null)
     setAnalysisError('')
     setAnalysisLoading(false)
+    setDraftClientIncidentDate('')
+    setConfirmedClientIncidentDate('')
     setSearchedAddress(nextAddress)
     try {
       const data = await fetchIncidentsByAddress(nextAddress, session.access_token)
@@ -657,10 +683,25 @@ function IncidentLookup({
     setAnalysis(null)
     setAnalysisError('')
     setAnalysisLoading(false)
-  }, [clientIncidentDate, result, searchedAddress])
+  }, [confirmedClientIncidentDate, result, searchedAddress])
+
+  function handleApplyClientIncidentDate() {
+    if (!draftClientIncidentDate || !isValidDate(draftClientIncidentDate)) return
+    setConfirmedClientIncidentDate(draftClientIncidentDate)
+  }
+
+  function handleClearClientIncidentDate() {
+    setDraftClientIncidentDate('')
+    setConfirmedClientIncidentDate('')
+  }
 
   async function handleGenerateAnalysis() {
-    if (!result || !searchedAddress || !clientIncidentDate || !isValidDate(clientIncidentDate)) {
+    if (
+      !result ||
+      !searchedAddress ||
+      !confirmedClientIncidentDate ||
+      !isValidDate(confirmedClientIncidentDate)
+    ) {
       setAnalysis(null)
       setAnalysisError('Enter a valid incident date before generating the analysis.')
       setAnalysisLoading(false)
@@ -671,7 +712,11 @@ function IncidentLookup({
     setAnalysisLoading(true)
     setAnalysisError('')
     try {
-      const data = await fetchLiabilityAnalysis(searchedAddress, clientIncidentDate, session.access_token)
+      const data = await fetchLiabilityAnalysis(
+        searchedAddress,
+        confirmedClientIncidentDate,
+        session.access_token,
+      )
       setAnalysis(data)
     } catch (err) {
       if (err instanceof IncidentLookupError) {
@@ -741,8 +786,11 @@ function IncidentLookup({
               analysis={analysis}
               analysisError={analysisError}
               analysisLoading={analysisLoading}
-              clientIncidentDate={clientIncidentDate}
-              onClientIncidentDateChange={setClientIncidentDate}
+              confirmedClientIncidentDate={confirmedClientIncidentDate}
+              draftClientIncidentDate={draftClientIncidentDate}
+              onApplyClientIncidentDate={handleApplyClientIncidentDate}
+              onClearClientIncidentDate={handleClearClientIncidentDate}
+              onDraftClientIncidentDateChange={setDraftClientIncidentDate}
               onGenerateAnalysis={handleGenerateAnalysis}
               result={result}
               searchedAddress={searchedAddress}

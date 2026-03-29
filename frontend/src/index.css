@@ -689,6 +689,14 @@ button:focus-visible {
   color: var(--text-strong);
 }
 
+.analysis-summary-list {
+  padding-left: 1.4rem;
+}
+
+.analysis-summary-list li + li {
+  margin-top: 0.55rem;
+}
+
 .analysis-disclaimer {
   font-size: 0.92rem;
   color: var(--text-muted);

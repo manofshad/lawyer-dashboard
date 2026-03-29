@@ -14,7 +14,7 @@ LIABILITY_ANALYSIS_SYSTEM_PROMPT = """You are assisting with an internal municip
 
 Your job is to write a short, neutral explanation of a precomputed timeline-based screening result. Do not give legal advice. Do not invent facts. Do not change the provided liability result or case strength.
 
-Write 2-4 short sentences in plain English.
+Write 2-4 short bullet points in plain English.
 
 Requirements:
 - Explain whether the timeline suggests the city is likely liable or likely not liable.

@@ -74,6 +74,28 @@ function getStrengthClassName(strength: CaseStrength): string {
   return 'badge-danger'
 }
 
+function parseAnalysisSummary(summary: string): { bullets: string[]; paragraph: string | null } {
+  const lines = summary
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (lines.length === 0) {
+    return { bullets: [], paragraph: null }
+  }
+
+  const bulletLines = lines
+    .filter((line) => line.startsWith('- '))
+    .map((line) => line.slice(2).trim())
+    .filter(Boolean)
+
+  if (bulletLines.length === lines.length) {
+    return { bullets: bulletLines, paragraph: null }
+  }
+
+  return { bullets: [], paragraph: summary.trim() || null }
+}
+
 function formatEventLabel(event: IncidentEvent): string {
   if (event.event_label) return event.event_label
   return event.event_type
@@ -721,6 +743,7 @@ function AnalysisPanel({
   onGenerateAnalysis: () => void
 }) {
   const hasValidClientDate = Boolean(confirmedClientIncidentDate && isValidDate(confirmedClientIncidentDate))
+  const parsedSummary = analysis ? parseAnalysisSummary(analysis.analysis_summary) : null
 
   return (
     <section ref={analysisPanelRef} className="panel analysis-panel" tabIndex={-1}>
@@ -784,7 +807,15 @@ function AnalysisPanel({
             </div>
           )}
 
-          <p className="analysis-summary">{analysis.analysis_summary}</p>
+          {parsedSummary?.bullets.length ? (
+            <ul className="analysis-summary analysis-summary-list">
+              {parsedSummary.bullets.map((bullet) => (
+                <li key={bullet}>{bullet}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="analysis-summary">{parsedSummary?.paragraph ?? analysis.analysis_summary}</p>
+          )}
           <p className="analysis-disclaimer">{analysis.disclaimer}</p>
 
           <button type="button" onClick={onGenerateAnalysis} className="button-secondary">

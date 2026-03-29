@@ -1,5 +1,6 @@
 <p align="center">
-  <img width="301" height="72" alt="nyclegal_50" src="https://github.com/user-attachments/assets/5f14da75-11e0-467f-8aa5-cfd55cedf443" />
+  <img width="276" height="145" alt="nyclegalnew" src="https://github.com/user-attachments/assets/44d24398-ebdb-401e-9181-b3f4a222eb4d" />
+
 </p>
 
 NYCLegal helps lawyers quickly review possible cases against New York City by turning messy city incident records into clear timelines and short case summaries for faster intake.

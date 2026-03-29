@@ -131,6 +131,11 @@ where not exists (
 );
 """
 
+DELETE_EVENTS_SQL = """
+delete from public.incident_events
+where incident_id = %s;
+"""
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -179,6 +184,7 @@ def upsert_incident(cursor: Any, incident: dict[str, Any], location_id: int) -> 
 
 
 def insert_events(cursor: Any, events: list[dict[str, Any]], incident_id: int) -> int:
+    cursor.execute(DELETE_EVENTS_SQL, (incident_id,))
     inserted_count = 0
     for event in events:
         params = dict(event)

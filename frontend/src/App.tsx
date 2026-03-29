@@ -38,10 +38,13 @@ function formatDate(value: string | null): string {
   if (!value) return 'Unknown'
   const parsed = parseDateValue(value)
   if (!parsed) return value
+
+  const useUtcCalendarDate = /T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(value)
   return parsed.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    ...(useUtcCalendarDate ? { timeZone: 'UTC' } : {}),
   })
 }
 

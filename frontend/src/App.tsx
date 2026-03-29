@@ -153,8 +153,6 @@ function LoginPage() {
 
 type TimelineEvent = IncidentEvent & {
   incidentExternalId: string
-  incidentStatus: string
-  incidentClosedAt: string | null
   sortIndex: number
 }
 
@@ -164,8 +162,6 @@ function buildTimelineEvents(incidents: Incident[]): TimelineEvent[] {
       incident.events.map((event, eventIndex) => ({
         ...event,
         incidentExternalId: incident.external_id,
-        incidentStatus: incident.status,
-        incidentClosedAt: incident.closed_at,
         sortIndex: incidentIndex * 1000 + eventIndex,
       })),
     )
@@ -182,8 +178,12 @@ function buildTimelineEvents(incidents: Incident[]): TimelineEvent[] {
     })
 }
 
-function isIncidentOpen(event: TimelineEvent): boolean {
-  return !event.incidentClosedAt && event.incidentStatus.toLowerCase() !== 'closed'
+function getTimelineDotColor(event: TimelineEvent): string {
+  const label = event.event_label?.trim().toLowerCase()
+
+  if (label === 'reported') return '#3DAA6A'
+  if (label === 'closed') return '#C0504A'
+  return '#A0AEC0'
 }
 
 function IncidentTimeline({ incidents }: { incidents: Incident[] }) {
@@ -209,10 +209,7 @@ function IncidentTimeline({ incidents }: { incidents: Incident[] }) {
 
         <ol className="space-y-7">
           {timelineEvents.map((event) => {
-            const open = isIncidentOpen(event)
-            const dotColor = open ? '#3DAA6A' : '#C0504A'
-            const badgeBg = open ? 'rgba(61,170,106,0.14)' : 'rgba(192,80,74,0.14)'
-            const badgeColor = open ? '#3DAA6A' : '#C0504A'
+            const dotColor = getTimelineDotColor(event)
 
             return (
               <li key={event.id} className="relative">
@@ -239,12 +236,6 @@ function IncidentTimeline({ incidents }: { incidents: Incident[] }) {
                   <p className="text-sm" style={{ color: '#718096' }}>
                     {event.incidentExternalId}
                   </p>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                    style={{ background: badgeBg, color: badgeColor }}
-                  >
-                    {open ? 'Open' : 'Closed'}
-                  </span>
                 </div>
               </li>
             )

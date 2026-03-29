@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class IncidentLookupRequest(BaseModel):
@@ -67,3 +67,39 @@ class AddressLookupDebugResponse(BaseModel):
     normalized_address: str
     match_count: int
     matches: list[LocationResponse]
+
+
+class LiabilityAnalysisRequest(BaseModel):
+    address: str | None = None
+    client_incident_date: date | None = None
+
+
+class LiabilityIncidentSummary(BaseModel):
+    external_id: str
+    reported_at: date
+    closed_at: date | None
+    status: str
+    days_open_as_of_client_incident: int | None
+    was_open_on_client_incident_date: bool
+    qualifies_for_notice_window: bool
+
+
+class LiabilityAnalysisResponse(BaseModel):
+    address: str
+    client_incident_date: date
+    liability_signal: str
+    case_strength: str
+    best_matching_incident_id: str | None
+    best_matching_days_open: int | None
+    analysis_summary: str
+    disclaimer: str
+
+
+class LiabilityPromptPayload(BaseModel):
+    address: str
+    client_incident_date: date
+    liability_signal: str
+    case_strength: str
+    best_matching_incident: LiabilityIncidentSummary | None
+    incident_summaries: list[LiabilityIncidentSummary]
+    additional_supporting_incident_count: int = Field(default=0, ge=0)

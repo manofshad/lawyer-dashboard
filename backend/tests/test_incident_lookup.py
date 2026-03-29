@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.auth import AuthenticatedUser, get_current_user
 from app.main import app
-from app.routers.incidents import get_incident_lookup_repository
+from app.routers.incidents import get_incident_lookup_repository, get_liability_summary_generator
 from app.services.incident_lookup import (
     IncidentLookupNotFoundError,
     assemble_incident_lookup_response,
@@ -117,6 +117,28 @@ class StubIncidentLookupRepository:
 
 def override_current_user() -> AuthenticatedUser:
     return AuthenticatedUser(token="token", claims={"sub": "user-1", "email": "user@example.com"})
+
+
+class StubLiabilitySummaryGenerator:
+    def __init__(self, summary: str = "The timeline likely supports liability.") -> None:
+        self.summary = summary
+        self.payloads = []
+
+    def generate_summary(self, payload):
+        self.payloads.append(payload)
+        return self.summary
+
+
+class StubOpenIncidentLookupRepository(StubIncidentLookupRepository):
+    def lookup_by_address(self, address: str | None) -> dict[str, object]:
+        payload = super().lookup_by_address(address)
+        payload["incidents"][0]["closed_at"] = None
+        payload["incidents"][0]["status"] = "open"
+        payload["incidents"][0]["events"] = [
+            payload["incidents"][0]["events"][0],
+        ]
+        payload["event_count"] = 1
+        return payload
 
 
 def test_incidents_by_address_returns_nested_location_payload() -> None:
@@ -266,6 +288,79 @@ def test_incident_address_check_returns_normalized_match_details() -> None:
             }
         ],
     }
+
+
+def test_incident_liability_analysis_returns_screened_payload() -> None:
+    repository = StubOpenIncidentLookupRepository()
+    summary_generator = StubLiabilitySummaryGenerator()
+    app.dependency_overrides[get_current_user] = override_current_user
+    app.dependency_overrides[get_incident_lookup_repository] = lambda: repository
+    app.dependency_overrides[get_liability_summary_generator] = lambda: summary_generator
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/incidents/liability-analysis",
+            json={
+                "address": "145 smith street",
+                "client_incident_date": "2026-01-25",
+            },
+        )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["liability_signal"] == "likely_liable"
+    assert payload["case_strength"] == "maybe"
+    assert payload["best_matching_incident_id"] == "DBSAMPLE0001"
+    assert payload["best_matching_days_open"] == 23
+    assert payload["analysis_summary"] == "The timeline likely supports liability."
+    assert "not legal advice" in payload["disclaimer"].lower()
+    assert summary_generator.payloads[0].best_matching_incident.external_id == "DBSAMPLE0001"
+
+
+def test_incident_liability_analysis_requires_client_incident_date() -> None:
+    repository = StubIncidentLookupRepository()
+    app.dependency_overrides[get_current_user] = override_current_user
+    app.dependency_overrides[get_incident_lookup_repository] = lambda: repository
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/incidents/liability-analysis",
+            json={"address": "145 smith street"},
+        )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Client incident date is required."}
+
+
+def test_incident_liability_analysis_propagates_generator_failure() -> None:
+    from fastapi import HTTPException
+
+    class _FailingGenerator:
+        def generate_summary(self, payload):
+            raise HTTPException(status_code=502, detail="OpenAI liability analysis request failed.")
+
+    repository = StubIncidentLookupRepository()
+    app.dependency_overrides[get_current_user] = override_current_user
+    app.dependency_overrides[get_incident_lookup_repository] = lambda: repository
+    app.dependency_overrides[get_liability_summary_generator] = lambda: _FailingGenerator()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/incidents/liability-analysis",
+            json={
+                "address": "145 smith street",
+                "client_incident_date": "2026-01-25",
+            },
+        )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "OpenAI liability analysis request failed."
 
 
 def test_assemble_incident_lookup_response_groups_events_per_incident() -> None:

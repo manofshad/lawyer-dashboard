@@ -11,6 +11,8 @@ from ..models.incidents import (
     AddressLookupDebugResponse,
     DatabaseDebugResponse,
     IncidentLookupRequest,
+    LiabilityAnalysisRequest,
+    LiabilityAnalysisResponse,
 )
 from ..services.incident_lookup import (
     IncidentLookupDataError,
@@ -18,6 +20,7 @@ from ..services.incident_lookup import (
     IncidentLookupRepository,
     IncidentLookupRepositoryError,
 )
+from ..services.liability_analysis import OpenAILiabilitySummaryGenerator, build_liability_analysis_response
 from ..settings import Settings, get_settings
 
 
@@ -36,6 +39,15 @@ def get_incident_lookup_repository(
         ) from exc
 
     return IncidentLookupRepository(database_url)
+
+
+def get_liability_summary_generator(
+    settings: Settings = Depends(get_settings),
+) -> OpenAILiabilitySummaryGenerator:
+    return OpenAILiabilitySummaryGenerator(
+        api_key=settings.openai_api_key,
+        model=settings.openai_model,
+    )
 
 
 @router.post("/api/incidents/by-address", response_model=AddressIncidentLookupResponse)
@@ -75,6 +87,60 @@ async def incidents_by_address(
         ) from exc
 
     return AddressIncidentLookupResponse.model_validate(result)
+
+
+@router.post(
+    "/api/incidents/liability-analysis",
+    response_model=LiabilityAnalysisResponse,
+)
+async def incident_liability_analysis(
+    payload: LiabilityAnalysisRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    repository: IncidentLookupRepository = Depends(get_incident_lookup_repository),
+    summary_generator: OpenAILiabilitySummaryGenerator = Depends(get_liability_summary_generator),
+) -> LiabilityAnalysisResponse:
+    del current_user
+
+    if payload.client_incident_date is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Client incident date is required.",
+        )
+
+    try:
+        lookup_result = repository.lookup_by_address(payload.address)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Address field is required.",
+        ) from exc
+    except IncidentLookupNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No incidents found for the provided address.",
+        ) from exc
+    except IncidentLookupDataError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Multiple locations matched the provided address.",
+        ) from exc
+    except DatabaseConnectionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to query the incident database.",
+        ) from exc
+    except IncidentLookupRepositoryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load incidents for the provided address.",
+        ) from exc
+
+    return build_liability_analysis_response(
+        address=lookup_result["normalized_address"],
+        client_incident_date=payload.client_incident_date,
+        incidents=lookup_result["incidents"],
+        summary_generator=summary_generator,
+    )
 
 
 @router.get("/api/incidents/debug/db-check", response_model=DatabaseDebugResponse)

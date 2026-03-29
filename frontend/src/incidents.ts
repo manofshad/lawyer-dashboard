@@ -42,6 +42,20 @@ export type AddressIncidentLookupResponse = {
   event_count: number
 }
 
+export type LiabilitySignal = 'likely_liable' | 'likely_not_liable'
+export type CaseStrength = 'strong' | 'maybe' | 'weak'
+
+export type LiabilityAnalysisResponse = {
+  address: string
+  client_incident_date: string
+  liability_signal: LiabilitySignal
+  case_strength: CaseStrength
+  best_matching_incident_id: string | null
+  best_matching_days_open: number | null
+  analysis_summary: string
+  disclaimer: string
+}
+
 export class IncidentLookupError extends Error {
   status: number
 
@@ -81,4 +95,39 @@ export async function fetchIncidentsByAddress(
   }
 
   return (await response.json()) as AddressIncidentLookupResponse
+}
+
+export async function fetchLiabilityAnalysis(
+  address: string,
+  clientIncidentDate: string,
+  accessToken: string,
+): Promise<LiabilityAnalysisResponse> {
+  const response = await fetch(`${apiBaseUrl}/api/incidents/liability-analysis`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      address,
+      client_incident_date: clientIncidentDate,
+    }),
+  })
+
+  if (!response.ok) {
+    let detail = 'Something went wrong. Please try again.'
+
+    try {
+      const payload = (await response.json()) as { detail?: string }
+      if (payload.detail) {
+        detail = payload.detail
+      }
+    } catch {
+      // Ignore non-JSON error bodies and fall back to generic messaging.
+    }
+
+    throw new IncidentLookupError(detail, response.status)
+  }
+
+  return (await response.json()) as LiabilityAnalysisResponse
 }

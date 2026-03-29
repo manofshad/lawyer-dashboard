@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 
 import {
+  fetchLiabilityAnalysis,
   fetchIncidentsByAddress,
+  type CaseStrength,
   IncidentLookupError,
   type AddressIncidentLookupResponse,
   type Incident,
   type IncidentEvent,
+  type LiabilityAnalysisResponse,
 } from './incidents'
 import { hasSupabaseConfig, supabase } from './lib'
 
@@ -44,6 +47,26 @@ function formatDate(value: string | null): string {
 
 function formatBoroughCode(code: string): string {
   return boroughLabels[code] ?? code
+}
+
+function formatLiabilitySignal(signal: LiabilityAnalysisResponse['liability_signal']): string {
+  return signal === 'likely_liable' ? 'Likely liable' : 'Likely not liable'
+}
+
+function formatCaseStrength(strength: CaseStrength): string {
+  if (strength === 'strong') return 'Strong'
+  if (strength === 'maybe') return 'Maybe'
+  return 'Weak'
+}
+
+function getStrengthBadgeStyle(strength: CaseStrength): { background: string; color: string } {
+  if (strength === 'strong') {
+    return { background: '#DFF3E8', color: '#206A43' }
+  }
+  if (strength === 'maybe') {
+    return { background: '#FDECC8', color: '#9A6700' }
+  }
+  return { background: '#FBE4E2', color: '#A33D36' }
 }
 
 function formatEventLabel(event: IncidentEvent): string {
@@ -358,15 +381,28 @@ function IncidentTimeline({
 // ─── Location + Incident Card ─────────────────────────────────────────────────
 
 function LocationIncidentCard({
+  analysis,
+  analysisError,
+  analysisLoading,
+  clientIncidentDate,
+  onClientIncidentDateChange,
+  onGenerateAnalysis,
   result,
   searchedAddress,
 }: {
+  analysis: LiabilityAnalysisResponse | null
+  analysisError: string
+  analysisLoading: boolean
+  clientIncidentDate: string
+  onClientIncidentDateChange: (value: string) => void
+  onGenerateAnalysis: () => void
   result: AddressIncidentLookupResponse
   searchedAddress: string
 }) {
   const [open, setOpen] = useState(false)
-  const [clientIncidentDate, setClientIncidentDate] = useState('')
   const longestDurationDays = getLongestIncidentDurationDays(result.incidents)
+  const hasValidClientDate = Boolean(clientIncidentDate && isValidDate(clientIncidentDate))
+  const strengthBadgeStyle = analysis ? getStrengthBadgeStyle(analysis.case_strength) : null
 
   return (
     <div className="w-full space-y-4">
@@ -465,12 +501,12 @@ function LocationIncidentCard({
                     color: '#1A2B3C',
                   }}
                   value={clientIncidentDate}
-                  onChange={(e) => setClientIncidentDate(e.target.value)}
+                  onChange={(e) => onClientIncidentDateChange(e.target.value)}
                 />
                 {clientIncidentDate && (
                   <button
                     type="button"
-                    onClick={() => setClientIncidentDate('')}
+                    onClick={() => onClientIncidentDateChange('')}
                     className="text-xs hover:opacity-70 transition-opacity"
                     style={{ color: '#A0AEC0' }}
                   >
@@ -483,6 +519,88 @@ function LocationIncidentCard({
           </div>
         )}
       </div>
+
+      {hasValidClientDate && (
+        <div
+          className="w-full rounded-xl border px-5 py-5 space-y-4"
+          style={{ background: '#FFFFFF', borderColor: '#E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+        >
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-[0.18em]" style={{ color: '#A0AEC0' }}>
+              AI Analysis
+            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-lg font-semibold" style={{ color: '#1A2B3C' }}>
+                  Timeline liability screening
+                </p>
+                {analysis && strengthBadgeStyle && (
+                  <>
+                    <span
+                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                      style={{ background: '#EFF3F8', color: '#2D3748' }}
+                    >
+                      {formatLiabilitySignal(analysis.liability_signal)}
+                    </span>
+                    <span
+                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                      style={strengthBadgeStyle}
+                    >
+                      {formatCaseStrength(analysis.case_strength)}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={onGenerateAnalysis}
+                disabled={analysisLoading}
+                className="rounded-xl px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+                style={{ background: '#2B72D7', color: '#FFFFFF' }}
+              >
+                {analysisLoading ? 'Generating…' : analysis ? 'Regenerate' : 'Generate'}
+              </button>
+            </div>
+          </div>
+
+          {analysisLoading && (
+            <p className="text-sm" style={{ color: '#718096' }}>
+              Generating timeline analysis…
+            </p>
+          )}
+
+          {!analysisLoading && !analysisError && !analysis && (
+            <p className="text-sm" style={{ color: '#718096' }}>
+              Generate a short AI summary for the current incident date and timeline.
+            </p>
+          )}
+
+          {!analysisLoading && analysisError && (
+            <p className="text-sm" style={{ color: '#C0504A' }}>
+              {analysisError}
+            </p>
+          )}
+
+          {!analysisLoading && analysis && (
+            <div className="space-y-3">
+              {analysis.best_matching_incident_id && analysis.best_matching_days_open !== null && (
+                <p className="text-sm" style={{ color: '#718096' }}>
+                  Strongest supporting incident: {analysis.best_matching_incident_id} ·{' '}
+                  {analysis.best_matching_days_open} day
+                  {analysis.best_matching_days_open === 1 ? '' : 's'} open by the client incident date
+                </p>
+              )}
+              <p className="text-sm leading-6" style={{ color: '#2D3748' }}>
+                {analysis.analysis_summary}
+              </p>
+              <p className="text-xs leading-5" style={{ color: '#A0AEC0' }}>
+                {analysis.disclaimer}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -497,7 +615,11 @@ function IncidentLookup({
   onSignOut: () => Promise<void>
 }) {
   const [address, setAddress] = useState('')
+  const [clientIncidentDate, setClientIncidentDate] = useState('')
   const [result, setResult] = useState<AddressIncidentLookupResponse | null>(null)
+  const [analysis, setAnalysis] = useState<LiabilityAnalysisResponse | null>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState('')
   const [searchedAddress, setSearchedAddress] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -512,6 +634,9 @@ function IncidentLookup({
     setLoading(true)
     setError('')
     setResult(null)
+    setAnalysis(null)
+    setAnalysisError('')
+    setAnalysisLoading(false)
     setSearchedAddress(nextAddress)
     try {
       const data = await fetchIncidentsByAddress(nextAddress, session.access_token)
@@ -525,6 +650,37 @@ function IncidentLookup({
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    setAnalysis(null)
+    setAnalysisError('')
+    setAnalysisLoading(false)
+  }, [clientIncidentDate, result, searchedAddress])
+
+  async function handleGenerateAnalysis() {
+    if (!result || !searchedAddress || !clientIncidentDate || !isValidDate(clientIncidentDate)) {
+      setAnalysis(null)
+      setAnalysisError('Enter a valid incident date before generating the analysis.')
+      setAnalysisLoading(false)
+      return
+    }
+
+    setAnalysis(null)
+    setAnalysisLoading(true)
+    setAnalysisError('')
+    try {
+      const data = await fetchLiabilityAnalysis(searchedAddress, clientIncidentDate, session.access_token)
+      setAnalysis(data)
+    } catch (err) {
+      if (err instanceof IncidentLookupError) {
+        setAnalysisError(err.message)
+        return
+      }
+      setAnalysisError('Unable to generate the timeline analysis right now.')
+    } finally {
+      setAnalysisLoading(false)
     }
   }
 
@@ -582,6 +738,12 @@ function IncidentLookup({
 
           {result && (
             <LocationIncidentCard
+              analysis={analysis}
+              analysisError={analysisError}
+              analysisLoading={analysisLoading}
+              clientIncidentDate={clientIncidentDate}
+              onClientIncidentDateChange={setClientIncidentDate}
+              onGenerateAnalysis={handleGenerateAnalysis}
               result={result}
               searchedAddress={searchedAddress}
             />

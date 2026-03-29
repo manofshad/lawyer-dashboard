@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type RefObject } from 'react'
 import type { Session } from '@supabase/supabase-js'
 
 import {
   fetchLiabilityAnalysis,
   fetchIncidentsByAddress,
-  type CaseStrength,
-  IncidentLookupError,
   type AddressIncidentLookupResponse,
+  type CaseStrength,
   type Incident,
   type IncidentEvent,
+  IncidentLookupError,
   type LiabilityAnalysisResponse,
 } from './incidents'
 import { hasSupabaseConfig, supabase } from './lib'
@@ -45,6 +45,10 @@ function formatDate(value: string | null): string {
   })
 }
 
+function isValidDate(value: string): boolean {
+  return parseDateValue(value) !== null
+}
+
 function formatBoroughCode(code: string): string {
   return boroughLabels[code] ?? code
 }
@@ -59,14 +63,10 @@ function formatCaseStrength(strength: CaseStrength): string {
   return 'Weak'
 }
 
-function getStrengthBadgeStyle(strength: CaseStrength): { background: string; color: string } {
-  if (strength === 'strong') {
-    return { background: '#DFF3E8', color: '#206A43' }
-  }
-  if (strength === 'maybe') {
-    return { background: '#FDECC8', color: '#9A6700' }
-  }
-  return { background: '#FBE4E2', color: '#A33D36' }
+function getStrengthClassName(strength: CaseStrength): string {
+  if (strength === 'strong') return 'badge-success'
+  if (strength === 'maybe') return 'badge-warning'
+  return 'badge-danger'
 }
 
 function formatEventLabel(event: IncidentEvent): string {
@@ -76,138 +76,6 @@ function formatEventLabel(event: IncidentEvent): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
-}
-
-// ─── Navbar ──────────────────────────────────────────────────────────────────
-
-function Navbar({
-  userEmail,
-  onSignOut,
-}: {
-  userEmail?: string
-  onSignOut?: () => Promise<void>
-}) {
-  return (
-    <nav
-      className="w-full px-8 py-4 flex items-center justify-between border-b"
-      style={{ background: '#1B3A6B', borderColor: '#163060' }}
-    >
-      <span
-        className="text-xl font-bold tracking-wide select-none"
-        style={{ color: '#FFFFFF' }}
-      >
-        NYCLegal
-      </span>
-
-      {userEmail && onSignOut && (
-        <div className="flex items-center gap-4">
-          <span className="text-sm hidden sm:block" style={{ color: '#A8C0E0' }}>
-            {userEmail}
-          </span>
-          <button
-            type="button"
-            onClick={onSignOut}
-            className="text-sm font-medium px-3 py-1.5 rounded-lg border transition-opacity hover:opacity-80"
-            style={{ borderColor: '#3A6BA8', color: '#FFFFFF' }}
-          >
-            Sign out
-          </button>
-        </div>
-      )}
-    </nav>
-  )
-}
-
-// ─── Login ───────────────────────────────────────────────────────────────────
-
-function LoginPage() {
-  const [authError, setAuthError] = useState('')
-
-  async function handleGoogleSignIn() {
-    if (!supabase) {
-      setAuthError('Supabase is not configured on the frontend.')
-      return
-    }
-    setAuthError('')
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.href },
-    })
-    if (error) setAuthError(error.message)
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#EFF3F8' }}>
-      <Navbar />
-
-      <main className="flex-1 flex items-center justify-center px-4">
-        <div
-          className="w-full max-w-sm rounded-2xl border p-8 space-y-6"
-          style={{ background: '#FFFFFF', borderColor: '#E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-        >
-          <div className="space-y-1">
-            <h1
-              className="text-2xl font-bold"
-              style={{ color: '#1A2B3C' }}
-            >
-              Welcome
-            </h1>
-            <p className="text-sm" style={{ color: '#718096' }}>
-              Sign in to access the incident lookup.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={!hasSupabaseConfig}
-              className="w-full rounded-xl px-4 py-2.5 text-base font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
-              style={{ background: '#2B72D7', color: '#FFFFFF' }}
-            >
-              Continue with Google
-            </button>
-
-            {!hasSupabaseConfig && (
-              <p className="text-sm" style={{ color: '#C0504A' }}>
-                Missing Supabase environment configuration.
-              </p>
-            )}
-            {authError && (
-              <p className="text-sm" style={{ color: '#C0504A' }}>
-                {authError}
-              </p>
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
-  )
-}
-
-// ─── Timeline ────────────────────────────────────────────────────────────────
-
-type TimelineEvent = IncidentEvent & {
-  kind: 'backend'
-  incidentExternalId: string
-  incidentDurationDays: number | null
-  key: string
-  sortIndex: number
-}
-
-type ClientIncidentTimelineEvent = {
-  kind: 'client-incident'
-  event_at: string
-  incidentExternalId: string
-  key: string
-  label: string
-  sortIndex: number
-}
-
-type TimelineItem = TimelineEvent | ClientIncidentTimelineEvent
-
-function isValidDate(value: string): boolean {
-  return parseDateValue(value) !== null
 }
 
 function getIncidentDurationDays(incident: Incident): number | null {
@@ -239,6 +107,25 @@ function getLongestIncidentDurationDays(incidents: Incident[]): number | null {
 
   return Math.max(...durations)
 }
+
+type TimelineEvent = IncidentEvent & {
+  kind: 'backend'
+  incidentDurationDays: number | null
+  incidentExternalId: string
+  key: string
+  sortIndex: number
+}
+
+type ClientIncidentTimelineEvent = {
+  kind: 'client-incident'
+  event_at: string
+  incidentExternalId: string
+  key: string
+  label: string
+  sortIndex: number
+}
+
+type TimelineItem = TimelineEvent | ClientIncidentTimelineEvent
 
 function buildTimelineEvents(incidents: Incident[], clientIncidentDate: string): TimelineItem[] {
   const timelineEvents: TimelineItem[] = incidents.flatMap((incident, incidentIndex) =>
@@ -280,19 +167,275 @@ function buildTimelineEvents(incidents: Incident[], clientIncidentDate: string):
   })
 }
 
-function getTimelineDotColor(event: TimelineItem): string {
-  if (event.kind === 'client-incident') return '#ECC94B'
+function getTimelineDotClassName(event: TimelineItem): string {
+  if (event.kind === 'client-incident') return 'timeline-dot-client'
 
   const label = event.event_label?.trim().toLowerCase()
 
-  if (label === 'reported') return '#3DAA6A'
-  if (label === 'closed') return '#C0504A'
-  return '#A0AEC0'
+  if (label === 'reported') return 'timeline-dot-reported'
+  if (label === 'closed') return 'timeline-dot-closed'
+  return 'timeline-dot-neutral'
 }
 
 function getTimelineLabel(event: TimelineItem): string {
   if (event.kind === 'client-incident') return event.label
   return formatEventLabel(event)
+}
+
+function TopBar({
+  userEmail,
+  onSignOut,
+}: {
+  userEmail?: string
+  onSignOut?: () => Promise<void>
+}) {
+  return (
+    <header className="app-topbar">
+      <div className="app-shell app-topbar-inner">
+        <div className="brand-block">
+          <div className="brand-mark">NY</div>
+          <div>
+            <p className="eyebrow">Municipal liability review</p>
+            <p className="brand-title">NYCLegal</p>
+          </div>
+        </div>
+
+        {userEmail && onSignOut && (
+          <div className="topbar-actions">
+            <div className="user-chip">
+              <span className="user-chip-label">Signed in</span>
+              <span className="user-chip-value">{userEmail}</span>
+            </div>
+            <button type="button" onClick={onSignOut} className="button-secondary">
+              Sign out
+            </button>
+          </div>
+        )}
+      </div>
+    </header>
+  )
+}
+
+function LoginPage() {
+  const [authError, setAuthError] = useState('')
+
+  async function handleGoogleSignIn() {
+    if (!supabase) {
+      setAuthError('Supabase is not configured on the frontend.')
+      return
+    }
+
+    setAuthError('')
+    const redirectTo = `${window.location.origin}${window.location.pathname}`
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    })
+    if (error) setAuthError(error.message)
+  }
+
+  return (
+    <div className="app-screen">
+      <TopBar />
+
+      <main className="login-shell app-shell">
+        <section className="login-hero">
+          <p className="eyebrow">Operator workspace</p>
+          <h1 className="hero-title">Turn NYC location history into a disciplined case-file review.</h1>
+          <p className="hero-copy">
+            Search an address, inspect historical incident timelines, and generate a preliminary
+            liability screen without switching tools.
+          </p>
+          <div className="trust-list">
+            <div className="trust-item">
+              <span className="trust-title">Structured timeline review</span>
+              <span className="trust-copy">Bring reported and closed incident events into one sequence.</span>
+            </div>
+            <div className="trust-item">
+              <span className="trust-title">Authenticated access</span>
+              <span className="trust-copy">Google sign-in gates lookup and analysis tools behind your workspace.</span>
+            </div>
+            <div className="trust-item">
+              <span className="trust-title">Focused legal screening</span>
+              <span className="trust-copy">Use case-strength signals as intake support, not final legal advice.</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="auth-panel">
+          <div className="auth-panel-head">
+            <p className="eyebrow">Secure sign-in</p>
+            <h2>Access the incident review desk</h2>
+            <p>Use your firm account to open the authenticated incident search and screening workflow.</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={!hasSupabaseConfig}
+            className="button-primary auth-button"
+          >
+            Continue with Google
+          </button>
+
+          <div className="auth-footnote">
+            {!hasSupabaseConfig && <p className="status-danger">Missing Supabase environment configuration.</p>}
+            {authError && <p className="status-danger">{authError}</p>}
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
+
+function SearchPanel({
+  address,
+  loading,
+  onAddressChange,
+  onSubmit,
+}: {
+  address: string
+  loading: boolean
+  onAddressChange: (value: string) => void
+  onSubmit: (event: { preventDefault(): void }) => void
+}) {
+  return (
+    <section className="panel intake-panel">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Address intake</p>
+          <h1>Incident review</h1>
+        </div>
+      </div>
+
+      <form className="intake-form" onSubmit={onSubmit}>
+        <label className="field-block">
+          <span className="field-label">Property or sidewalk address</span>
+          <input
+            className="text-input"
+            value={address}
+            onChange={(event) => onAddressChange(event.target.value)}
+            placeholder="Enter an address, intersection, or location note"
+            autoFocus
+          />
+        </label>
+
+        <button type="submit" disabled={loading} className="button-primary intake-button">
+          {loading ? 'Searching…' : 'Search records'}
+        </button>
+      </form>
+    </section>
+  )
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="metric-card">
+      <span className="metric-label">{label}</span>
+      <span className="metric-value">{value}</span>
+    </div>
+  )
+}
+
+function ResultsHeader({
+  result,
+  searchedAddress,
+}: {
+  result: AddressIncidentLookupResponse
+  searchedAddress: string
+}) {
+  const longestDurationDays = getLongestIncidentDurationDays(result.incidents)
+
+  return (
+    <section className="panel results-header">
+      <div className="results-header-copy">
+        <div>
+          <p className="eyebrow">Search result</p>
+          <h2>{result.location.canonical_address}</h2>
+        </div>
+
+        <div className="results-meta">
+          <span className="badge-muted">{formatBoroughCode(result.location.boro)}</span>
+          {result.location.spec_loc && <span className="badge-muted">{result.location.spec_loc}</span>}
+          <span className="results-query">Queried as “{searchedAddress}”</span>
+        </div>
+
+        <p className="section-copy">
+          Normalized reference: {result.normalized_address}
+        </p>
+      </div>
+
+      <div className="results-metrics">
+        <MetricCard label="Incidents" value={`${result.incident_count}`} />
+        <MetricCard label="Events" value={`${result.event_count}`} />
+        <MetricCard
+          label="Longest open"
+          value={longestDurationDays === null ? 'Unavailable' : formatDurationLabel(longestDurationDays)}
+        />
+      </div>
+    </section>
+  )
+}
+
+function TimelineToolbar({
+  canApplyClientDate,
+  confirmedClientIncidentDate,
+  draftClientIncidentDate,
+  onApplyClientIncidentDate,
+  onClearClientIncidentDate,
+  onDraftClientIncidentDateChange,
+}: {
+  canApplyClientDate: boolean
+  confirmedClientIncidentDate: string
+  draftClientIncidentDate: string
+  onApplyClientIncidentDate: () => void
+  onClearClientIncidentDate: () => void
+  onDraftClientIncidentDateChange: (value: string) => void
+}) {
+  return (
+    <div className="timeline-toolbar">
+      <div>
+        <p className="eyebrow">Case comparison</p>
+        <h3>Client incident date</h3>
+      </div>
+
+      <div className="timeline-toolbar-controls">
+        <label className="field-inline">
+          <span className="field-label">Date</span>
+          <input
+            type="date"
+            className="text-input date-input"
+            value={draftClientIncidentDate}
+            onChange={(event) => onDraftClientIncidentDateChange(event.target.value)}
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={onApplyClientIncidentDate}
+          disabled={!canApplyClientDate}
+          className="button-primary"
+        >
+          Apply date
+        </button>
+
+        <button
+          type="button"
+          onClick={onClearClientIncidentDate}
+          disabled={!draftClientIncidentDate && !confirmedClientIncidentDate}
+          className="button-secondary"
+        >
+          Clear
+        </button>
+      </div>
+
+      <p className="field-help">
+        {confirmedClientIncidentDate
+          ? `Client incident is currently pinned to ${formatDate(confirmedClientIncidentDate)}.`
+          : 'Apply a date to place the client event directly inside the incident sequence.'}
+      </p>
+    </div>
+  )
 }
 
 function IncidentTimeline({
@@ -306,329 +449,224 @@ function IncidentTimeline({
 
   if (timelineEvents.length === 0) {
     return (
-      <p className="text-sm py-4" style={{ color: '#718096' }}>
-        No events recorded for this address.
-      </p>
+      <div className="timeline-empty">
+        <p>No events recorded for this address.</p>
+      </div>
     )
   }
 
   return (
-    <div className="pt-4">
-      <div className="relative pl-8">
-        {/* Vertical line */}
-        <div
-          aria-hidden="true"
-          className="absolute bottom-0 left-3 top-0 w-px"
-          style={{ background: '#E2E8F0' }}
-        />
+    <ol className="timeline-list">
+      {timelineEvents.map((event) => {
+        const isClientIncident = event.kind === 'client-incident'
+        let durationLabel: string | null = null
 
-        <ol className="space-y-7">
-          {timelineEvents.map((event) => {
-            const dotColor = getTimelineDotColor(event)
-            let durationLabel: string | null = null
+        if (
+          event.kind === 'backend' &&
+          event.incidentDurationDays !== null &&
+          getTimelineLabel(event).trim().toLowerCase() === 'closed'
+        ) {
+          durationLabel = formatDurationLabel(event.incidentDurationDays)
+        }
 
-            if (
-              event.kind === 'backend' &&
-              event.incidentDurationDays !== null &&
-              getTimelineLabel(event).trim().toLowerCase() === 'closed'
-            ) {
-              durationLabel = formatDurationLabel(event.incidentDurationDays)
-            }
+        return (
+          <li key={event.key} className="timeline-item">
+            <div className="timeline-date-block">
+              <p className="timeline-date">{formatDate(event.event_at)}</p>
+              <p className="timeline-date-subhead">{isClientIncident ? 'Client marker' : 'Recorded event'}</p>
+            </div>
 
-            return (
-              <li key={event.key} className="relative">
-                {/* Timeline dot */}
-                <span
-                  aria-hidden="true"
-                  className="absolute left-[-1.625rem] top-[0.35rem] h-3 w-3 rounded-full border-2"
-                  style={{ background: dotColor, borderColor: '#FFFFFF' }}
-                />
+            <div className="timeline-line">
+              <span className={`timeline-dot ${getTimelineDotClassName(event)}`} />
+            </div>
 
-                {/* Date */}
-                <p
-                  className="text-xs uppercase tracking-[0.18em]"
-                  style={{ color: '#A0AEC0' }}
-                >
-                  {formatDate(event.event_at)}
-                </p>
-
-                {/* Event label row */}
-                <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <p className="text-base font-medium" style={{ color: '#1A2B3C' }}>
-                    {getTimelineLabel(event)}
-                  </p>
-                  {durationLabel && (
-                    <span
-                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                      style={{ background: '#EFF3F8', color: '#2D3748' }}
-                    >
-                      {durationLabel}
-                    </span>
-                  )}
-                  <p className="text-sm" style={{ color: '#718096' }}>
-                    {event.incidentExternalId}
-                  </p>
+            <div className={`timeline-card ${isClientIncident ? 'timeline-card-emphasis' : ''}`}>
+              <div className="timeline-card-header">
+                <div className="timeline-title-row">
+                  <p className="timeline-title">{getTimelineLabel(event)}</p>
+                  {durationLabel && <span className="badge-muted">{durationLabel}</span>}
+                  {isClientIncident && <span className="badge-warning">Comparison point</span>}
                 </div>
-              </li>
-            )
-          })}
-        </ol>
-      </div>
-    </div>
+                <p className="timeline-incident-id">{event.incidentExternalId}</p>
+              </div>
+            </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
-// ─── Location + Incident Card ─────────────────────────────────────────────────
-
-function LocationIncidentCard({
-  analysis,
-  analysisError,
+function TimelineSection({
   analysisLoading,
   confirmedClientIncidentDate,
   draftClientIncidentDate,
+  incidents,
+  onGenerateAnalysis,
   onApplyClientIncidentDate,
   onClearClientIncidentDate,
   onDraftClientIncidentDateChange,
+}: {
+  analysisLoading: boolean
+  confirmedClientIncidentDate: string
+  draftClientIncidentDate: string
+  incidents: Incident[]
+  onGenerateAnalysis: (event?: MouseEvent<HTMLButtonElement>) => void
+  onApplyClientIncidentDate: () => void
+  onClearClientIncidentDate: () => void
+  onDraftClientIncidentDateChange: (value: string) => void
+}) {
+  const canApplyClientDate =
+    Boolean(draftClientIncidentDate && isValidDate(draftClientIncidentDate)) &&
+    draftClientIncidentDate !== confirmedClientIncidentDate
+
+  return (
+    <section className="panel timeline-panel">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Evidence timeline</p>
+          <h2>Incident sequence</h2>
+        </div>
+        <p className="section-copy">
+          Review reported and closed events in order, then place the client date into the same historical frame.
+        </p>
+      </div>
+
+      <TimelineToolbar
+        canApplyClientDate={canApplyClientDate}
+        confirmedClientIncidentDate={confirmedClientIncidentDate}
+        draftClientIncidentDate={draftClientIncidentDate}
+        onApplyClientIncidentDate={onApplyClientIncidentDate}
+        onClearClientIncidentDate={onClearClientIncidentDate}
+        onDraftClientIncidentDateChange={onDraftClientIncidentDateChange}
+      />
+
+      <IncidentTimeline incidents={incidents} clientIncidentDate={confirmedClientIncidentDate} />
+
+      <div className="timeline-analysis-action">
+        <div>
+          <p className="eyebrow">Next step</p>
+          <h3>Run timeline screening</h3>
+          <p className="section-copy">
+            Generate the liability review after you confirm the client incident date against the timeline.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={(event) => onGenerateAnalysis(event)}
+          disabled={(!canApplyClientDate && !confirmedClientIncidentDate) || analysisLoading}
+          className="button-primary timeline-analysis-button"
+        >
+          {analysisLoading ? 'Generating…' : 'Generate analysis'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function AnalysisPanel({
+  analysis,
+  analysisError,
+  analysisLoading,
+  analysisPanelRef,
+  confirmedClientIncidentDate,
   onGenerateAnalysis,
-  result,
-  searchedAddress,
 }: {
   analysis: LiabilityAnalysisResponse | null
   analysisError: string
   analysisLoading: boolean
+  analysisPanelRef: RefObject<HTMLElement | null>
   confirmedClientIncidentDate: string
-  draftClientIncidentDate: string
-  onApplyClientIncidentDate: () => void
-  onClearClientIncidentDate: () => void
-  onDraftClientIncidentDateChange: (value: string) => void
   onGenerateAnalysis: () => void
-  result: AddressIncidentLookupResponse
-  searchedAddress: string
 }) {
-  const [open, setOpen] = useState(false)
-  const longestDurationDays = getLongestIncidentDurationDays(result.incidents)
   const hasValidClientDate = Boolean(confirmedClientIncidentDate && isValidDate(confirmedClientIncidentDate))
-  const canApplyClientDate =
-    Boolean(draftClientIncidentDate && isValidDate(draftClientIncidentDate)) &&
-    draftClientIncidentDate !== confirmedClientIncidentDate
-  const strengthBadgeStyle = analysis ? getStrengthBadgeStyle(analysis.case_strength) : null
 
   return (
-    <div className="w-full space-y-4">
-      <p className="text-sm" style={{ color: '#718096' }}>
-        Results for &ldquo;{searchedAddress}&rdquo;
-      </p>
-
-      <div
-        className="w-full rounded-xl border overflow-hidden"
-        style={{ background: '#FFFFFF', borderColor: '#E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-      >
-        {/* Location info */}
-        <div className="px-5 pt-5 pb-4 space-y-1">
-          <p className="text-xs uppercase tracking-[0.18em]" style={{ color: '#A0AEC0' }}>
-            Location
-          </p>
-          <p className="text-lg font-semibold" style={{ color: '#1A2B3C' }}>
-            {result.location.canonical_address}
-          </p>
-          <p className="text-sm" style={{ color: '#718096' }}>
-            Normalized: {result.normalized_address}
-          </p>
-          <p className="text-sm" style={{ color: '#A0AEC0' }}>
-            {formatBoroughCode(result.location.boro)}
-            {result.location.spec_loc ? ` · ${result.location.spec_loc}` : ''}
-          </p>
+    <section ref={analysisPanelRef} className="panel analysis-panel" tabIndex={-1}>
+      <div className="section-heading compact analysis-heading">
+        <div>
+          <p className="eyebrow">AI screening</p>
+          <h3>Timeline liability analysis</h3>
         </div>
-
-        {/* Divider + toggle */}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-3 border-t transition-colors hover:bg-gray-50"
-          style={{ borderColor: '#E2E8F0' }}
-        >
-          <div className="flex flex-wrap items-center gap-3">
-            <span
-              className="text-sm font-semibold"
-              style={{ color: '#2D3748' }}
-            >
-              Incident Timeline
-            </span>
-            <span
-              className="text-xs px-2.5 py-0.5 rounded-full"
-              style={{ background: '#EFF3F8', color: '#718096' }}
-            >
-              {result.incident_count} incident{result.incident_count !== 1 ? 's' : ''} &middot;{' '}
-              {result.event_count} event{result.event_count !== 1 ? 's' : ''}
-            </span>
-            {longestDurationDays !== null && (
-              <span
-                className="text-xs px-2.5 py-0.5 rounded-full"
-                style={{ background: '#EFF3F8', color: '#718096' }}
-              >
-                Longest open: {longestDurationDays} {longestDurationDays === 1 ? 'day' : 'days'}
-              </span>
-            )}
-          </div>
-
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#A0AEC0"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              flexShrink: 0,
-              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-            }}
-            aria-hidden="true"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-
-        {/* Collapsible timeline */}
-        {open && (
-          <div className="px-5 pb-6 border-t" style={{ borderColor: '#E2E8F0' }}>
-            {/* Date of client incident — lives here so changes are visible alongside the timeline */}
-            <div className="pt-4 pb-2">
-              <div className="flex flex-col gap-2">
-                <label className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-xs uppercase tracking-[0.18em] shrink-0" style={{ color: '#A0AEC0' }}>
-                    Client Incident Date
-                  </span>
-                  <input
-                    type="date"
-                    className="rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2"
-                    style={{
-                      background: '#F7FAFC',
-                      borderColor: '#CBD5E0',
-                      color: '#1A2B3C',
-                    }}
-                    value={draftClientIncidentDate}
-                    onChange={(e) => onDraftClientIncidentDateChange(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    onClick={onApplyClientIncidentDate}
-                    disabled={!canApplyClientDate}
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
-                    style={{ background: '#2B72D7', color: '#FFFFFF' }}
-                  >
-                    Apply date
-                  </button>
-                  {(draftClientIncidentDate || confirmedClientIncidentDate) && (
-                    <button
-                      type="button"
-                      onClick={onClearClientIncidentDate}
-                      className="text-xs hover:opacity-70 transition-opacity"
-                      style={{ color: '#A0AEC0' }}
-                    >
-                      Clear
-                    </button>
-                  )}
-                </label>
-                <p className="text-xs" style={{ color: '#A0AEC0' }}>
-                  Date appears on the timeline after you apply it.
-                </p>
-              </div>
-            </div>
-            <IncidentTimeline incidents={result.incidents} clientIncidentDate={confirmedClientIncidentDate} />
-          </div>
-        )}
+        <p className="section-copy">
+          Generate a short case-screening summary based on whether prior incidents were open by the client date.
+        </p>
       </div>
 
-      {hasValidClientDate && (
-        <div
-          className="w-full rounded-xl border px-5 py-5 space-y-4"
-          style={{ background: '#FFFFFF', borderColor: '#E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-        >
-          <div className="space-y-1">
-            <p className="text-xs uppercase tracking-[0.18em]" style={{ color: '#A0AEC0' }}>
-              AI Analysis
-            </p>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-lg font-semibold" style={{ color: '#1A2B3C' }}>
-                  Timeline liability screening
-                </p>
-                {analysis && strengthBadgeStyle && (
-                  <>
-                    <span
-                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                      style={{ background: '#EFF3F8', color: '#2D3748' }}
-                    >
-                      {formatLiabilitySignal(analysis.liability_signal)}
-                    </span>
-                    <span
-                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                      style={strengthBadgeStyle}
-                    >
-                      {formatCaseStrength(analysis.case_strength)}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={onGenerateAnalysis}
-                disabled={analysisLoading}
-                className="rounded-xl px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
-                style={{ background: '#2B72D7', color: '#FFFFFF' }}
-              >
-                {analysisLoading ? 'Generating…' : analysis ? 'Regenerate' : 'Generate'}
-              </button>
-            </div>
-          </div>
-
-          {analysisLoading && (
-            <p className="text-sm" style={{ color: '#718096' }}>
-              Generating timeline analysis…
-            </p>
-          )}
-
-          {!analysisLoading && !analysisError && !analysis && (
-            <p className="text-sm" style={{ color: '#718096' }}>
-              Generate a short AI summary for the current incident date and timeline.
-            </p>
-          )}
-
-          {!analysisLoading && analysisError && (
-            <p className="text-sm" style={{ color: '#C0504A' }}>
-              {analysisError}
-            </p>
-          )}
-
-          {!analysisLoading && analysis && (
-            <div className="space-y-3">
-              {analysis.best_matching_incident_id && analysis.best_matching_days_open !== null && (
-                <p className="text-sm" style={{ color: '#718096' }}>
-                  Strongest supporting incident: {analysis.best_matching_incident_id} ·{' '}
-                  {analysis.best_matching_days_open} day
-                  {analysis.best_matching_days_open === 1 ? '' : 's'} open by the client incident date
-                </p>
-              )}
-              <p className="text-sm leading-6" style={{ color: '#2D3748' }}>
-                {analysis.analysis_summary}
-              </p>
-              <p className="text-xs leading-5" style={{ color: '#A0AEC0' }}>
-                {analysis.disclaimer}
-              </p>
-            </div>
-          )}
+      {!hasValidClientDate && (
+        <div className="analysis-state">
+          <p className="status-muted">Add and apply a client incident date to enable case screening.</p>
         </div>
       )}
-    </div>
+
+      {hasValidClientDate && !analysisLoading && !analysis && !analysisError && (
+        <div className="analysis-state">
+          <p className="status-muted">
+            Client incident date confirmed for {formatDate(confirmedClientIncidentDate)}. Generate the
+            analysis from below the timeline to review the result here.
+          </p>
+        </div>
+      )}
+
+      {analysisLoading && (
+        <div className="analysis-loading">
+          <div className="skeleton-row short" />
+          <div className="skeleton-row" />
+          <div className="skeleton-row" />
+          <p className="status-muted">Generating timeline analysis…</p>
+        </div>
+      )}
+
+      {!analysisLoading && analysisError && (
+        <div className="analysis-state analysis-error">
+          <p className="status-danger">{analysisError}</p>
+          <button type="button" onClick={onGenerateAnalysis} className="button-secondary">
+            Try again
+          </button>
+        </div>
+      )}
+
+      {!analysisLoading && analysis && (
+        <div className="analysis-result">
+          <div className="analysis-badges">
+            <span className="badge-muted">{formatLiabilitySignal(analysis.liability_signal)}</span>
+            <span className={getStrengthClassName(analysis.case_strength)}>
+              {formatCaseStrength(analysis.case_strength)}
+            </span>
+          </div>
+
+          {analysis.best_matching_incident_id && analysis.best_matching_days_open !== null && (
+            <div className="analysis-callout">
+              Strongest supporting incident: {analysis.best_matching_incident_id} was open for{' '}
+              {analysis.best_matching_days_open} day
+              {analysis.best_matching_days_open === 1 ? '' : 's'} by the client incident date.
+            </div>
+          )}
+
+          <p className="analysis-summary">{analysis.analysis_summary}</p>
+          <p className="analysis-disclaimer">{analysis.disclaimer}</p>
+
+          <button type="button" onClick={onGenerateAnalysis} className="button-secondary">
+            Regenerate
+          </button>
+        </div>
+      )}
+    </section>
   )
 }
 
-// ─── Incident Lookup ─────────────────────────────────────────────────────────
+function EmptyWorkspace() {
+  return (
+    <section className="panel empty-workspace">
+      <p className="eyebrow">Ready for review</p>
+      <h2>Search a location to open the incident workspace.</h2>
+      <p className="section-copy">
+        Results will populate with address normalization, incident counts, the full event timeline, and liability screening controls.
+      </p>
+    </section>
+  )
+}
 
 function IncidentLookup({
   session,
@@ -647,9 +685,9 @@ function IncidentLookup({
   const [searchedAddress, setSearchedAddress] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const analysisPanelRef = useRef<HTMLElement | null>(null)
 
-  const userEmail =
-    session.user.email ?? session.user.user_metadata.email ?? 'Unknown user'
+  const userEmail = session.user.email ?? session.user.user_metadata.email ?? 'Unknown user'
 
   async function handleSearch(event: { preventDefault(): void }) {
     event.preventDefault()
@@ -664,14 +702,24 @@ function IncidentLookup({
     setDraftClientIncidentDate('')
     setConfirmedClientIncidentDate('')
     setSearchedAddress(nextAddress)
+
     try {
       const data = await fetchIncidentsByAddress(nextAddress, session.access_token)
       setResult(data)
     } catch (err) {
       if (err instanceof IncidentLookupError) {
-        if (err.status === 401) { setError('Your session expired. Please sign in again.'); return }
-        if (err.status === 404) { setError(`No incidents found for "${nextAddress}".`); return }
-        if (err.status === 400) { setError(err.message); return }
+        if (err.status === 401) {
+          setError('Your session expired. Please sign in again.')
+          return
+        }
+        if (err.status === 404) {
+          setError(`No incidents found for "${nextAddress}".`)
+          return
+        }
+        if (err.status === 400) {
+          setError(err.message)
+          return
+        }
       }
       setError('Something went wrong. Please try again.')
     } finally {
@@ -695,7 +743,7 @@ function IncidentLookup({
     setConfirmedClientIncidentDate('')
   }
 
-  async function handleGenerateAnalysis() {
+  async function handleGenerateAnalysis(event?: MouseEvent<HTMLButtonElement>) {
     if (
       !result ||
       !searchedAddress ||
@@ -708,9 +756,18 @@ function IncidentLookup({
       return
     }
 
+    event?.currentTarget.blur()
+
+    if (analysisPanelRef.current) {
+      analysisPanelRef.current.focus({ preventScroll: true })
+      const top = analysisPanelRef.current.getBoundingClientRect().top + window.scrollY - 108
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+    }
+
     setAnalysis(null)
     setAnalysisLoading(true)
     setAnalysisError('')
+
     try {
       const data = await fetchLiabilityAnalysis(
         searchedAddress,
@@ -730,79 +787,69 @@ function IncidentLookup({
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#EFF3F8' }}>
-      <Navbar userEmail={userEmail} onSignOut={onSignOut} />
+    <div className="app-screen">
+      <TopBar userEmail={userEmail} onSignOut={onSignOut} />
 
-      <main className="flex-1 flex flex-col items-center px-4 pt-14 pb-12">
-        <div className="w-full max-w-2xl flex flex-col items-center gap-8">
-          {/* Heading */}
-          <div className="text-center space-y-2">
-            <h1
-              className="text-4xl font-bold"
-              style={{ color: '#1A2B3C' }}
-            >
-              Incident Lookup
-            </h1>
-            <p className="text-lg" style={{ color: '#718096' }}>
-              Search an address to see reported incidents
-            </p>
-          </div>
-
-          {/* Search */}
-          <form className="w-full space-y-3" onSubmit={handleSearch}>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input
-                className="flex-1 rounded-xl border px-4 py-3 text-base focus:outline-none focus:ring-2"
-                style={{
-                  background: '#FFFFFF',
-                  borderColor: '#CBD5E0',
-                  color: '#1A2B3C',
-                }}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Enter an address..."
-                autoFocus
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-xl px-6 py-3 text-base font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
-                style={{ background: '#2B72D7', color: '#FFFFFF' }}
-              >
-                {loading ? 'Searching…' : 'Search'}
-              </button>
-            </div>
-
-          </form>
+      <main className="workspace-shell app-shell">
+        <section className="workspace-main">
+          <SearchPanel
+            address={address}
+            loading={loading}
+            onAddressChange={setAddress}
+            onSubmit={handleSearch}
+          />
 
           {error && (
-            <p className="text-sm" style={{ color: '#C0504A' }}>
-              {error}
-            </p>
+            <div className="panel error-panel">
+              <p className="status-danger">{error}</p>
+            </div>
+          )}
+
+          {!result && !error && !loading && <EmptyWorkspace />}
+
+          {loading && (
+            <section className="panel loading-panel">
+              <p className="eyebrow">Searching records</p>
+              <h2>Looking up location history…</h2>
+              <div className="loading-stack">
+                <div className="skeleton-row short" />
+                <div className="skeleton-row" />
+                <div className="skeleton-row" />
+              </div>
+            </section>
           )}
 
           {result && (
-            <LocationIncidentCard
-              analysis={analysis}
-              analysisError={analysisError}
-              analysisLoading={analysisLoading}
-              confirmedClientIncidentDate={confirmedClientIncidentDate}
-              draftClientIncidentDate={draftClientIncidentDate}
-              onApplyClientIncidentDate={handleApplyClientIncidentDate}
-              onClearClientIncidentDate={handleClearClientIncidentDate}
-              onDraftClientIncidentDateChange={setDraftClientIncidentDate}
-              onGenerateAnalysis={handleGenerateAnalysis}
-              result={result}
-              searchedAddress={searchedAddress}
-            />
+            <>
+              <ResultsHeader result={result} searchedAddress={searchedAddress} />
+              <TimelineSection
+                analysisLoading={analysisLoading}
+                confirmedClientIncidentDate={confirmedClientIncidentDate}
+                draftClientIncidentDate={draftClientIncidentDate}
+                incidents={result.incidents}
+                onGenerateAnalysis={handleGenerateAnalysis}
+                onApplyClientIncidentDate={handleApplyClientIncidentDate}
+                onClearClientIncidentDate={handleClearClientIncidentDate}
+                onDraftClientIncidentDateChange={setDraftClientIncidentDate}
+              />
+            </>
           )}
-        </div>
+        </section>
+
+        <aside className="workspace-rail">
+          <AnalysisPanel
+            analysis={analysis}
+            analysisError={analysisError}
+            analysisLoading={analysisLoading}
+            analysisPanelRef={analysisPanelRef}
+            confirmedClientIncidentDate={confirmedClientIncidentDate}
+            onGenerateAnalysis={handleGenerateAnalysis}
+          />
+        </aside>
       </main>
     </div>
   )
 }
-
-// ─── App root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -810,15 +857,27 @@ export default function App() {
 
   useEffect(() => {
     if (!supabase) return
+
     let active = true
+
     void supabase.auth.getSession().then(({ data }) => {
-      if (active) { setSession(data.session); setReady(true) }
+      if (active) {
+        setSession(data.session)
+        setReady(true)
+      }
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
       setReady(true)
     })
-    return () => { active = false; subscription.unsubscribe() }
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function handleSignOut() {
@@ -828,8 +887,8 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#EFF3F8' }}>
-        <p className="text-sm" style={{ color: '#718096' }}>Loading session…</p>
+      <div className="app-loading-screen">
+        <p className="status-muted">Loading session…</p>
       </div>
     )
   }

@@ -1,4 +1,6 @@
-# NYCLegal
+<p align="center">
+  <img width="301" height="72" alt="nyclegal_50" src="https://github.com/user-attachments/assets/5f14da75-11e0-467f-8aa5-cfd55cedf443" />
+</p>
 
 NYCLegal helps lawyers quickly review possible cases against New York City by turning messy city incident records into clear timelines and short case summaries for faster intake.
 
